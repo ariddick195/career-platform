@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a database-driven personal resume website for a Data Analyst professional that can evolve into a broader career platform. The initial version should present a polished, professional personal brand while remaining easy to maintain via structured content management. The platform must be flexible enough to grow into a portfolio, case study library, editorial content hub, and lead-capture system without requiring a complete redesign.
+This project is a database-driven personal resume website for a Data Analyst professional that can evolve into a broader career platform. The initial version should present a polished, professional personal brand while remaining easy to maintain via structured content management. The platform must be flexible enough to grow into a portfolio, certifications library, volunteer section, and lead-capture system without requiring a complete redesign.
 
 The recommended direction is a content-first architecture with a relational database, admin-managed records, a public website frontend, and future-ready data models for career growth features.
 
@@ -12,8 +12,8 @@ The website must help the owner:
 
 - present a clear professional identity as a Data Analyst
 - communicate value to a mixed audience of recruiters, hiring managers, and potential clients
-- document work experience, skills, education, and project outcomes in a recruiter-friendly way
-- publish portfolio work and case studies without manual front-end edits
+- document work experience, skills, education, certifications, volunteer work, and project outcomes in a recruiter-friendly way
+- publish portfolio work and credential highlights without manual front-end edits
 - grow into a broader career platform without reworking the underlying data model
 
 ## Goals
@@ -24,7 +24,7 @@ The website must help the owner:
 2. Store key profile and career data in a database rather than hard-coded content.
 3. Support non-technical updates through an admin interface.
 4. Make content easy to re-use across pages and future modules.
-5. Prepare the platform for portfolio content, articles, and lead capture.
+5. Prepare the platform for portfolio content, certifications, volunteer experience, and lead capture.
 
 ### Success criteria
 
