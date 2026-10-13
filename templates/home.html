@@ -1,7 +1,145 @@
-{% extends "base.html" %}{% block body %}<main class="wrap">
-<header class="hero"><div><p class="eyebrow">CAREER PROFILE · LOS ANGELES</p><h1>{{ person.full_name }}</h1><p class="lead">{{ person.career_goal }}</p><p class="muted">{{ [person.location_city, person.location_state, person.location_country]|select|join(', ') }}</p></div><aside class="contact"><span>GET IN TOUCH</span>{% if person.email %}<a href="mailto:{{ person.email }}">{{ person.email }}</a>{% endif %}{% if person.phone %}<p>{{ person.phone }}</p>{% endif %}{% for item in links %}<a href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.label }} ↗</a>{% endfor %}</aside></header>
-{% if person.summary %}<section><p class="eyebrow">ABOUT</p><h2>Professional summary</h2><p>{{ person.summary }}</p></section>{% endif %}
-{% for heading,items in [('Experience', experiences),('Education', educations),('Projects', projects)] %}{% if items %}<section><p class="eyebrow">CAREER</p><h2>{{ heading }}</h2><div class="cards">{% for item in items %}<article class="card">{% if heading == 'Experience' %}<h3>{{ item.role_title }}</h3><p class="sub">{{ item.company_name }} · {{ item.city }}{% if item.state %}, {{ item.state }}{% endif %}</p><p class="muted">{{ item.start_date }} — {{ 'Present' if item.is_current else item.end_date }}</p>{% if item.description %}<p>{{ item.description }}</p>{% endif %}{% if item.achievements %}<ul>{% for line in item.achievements.split('\n') if line %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}{% elif heading == 'Education' %}<h3>{{ item.degree_name }} {{ item.field_of_study }}</h3><p class="sub">{{ item.institution_name }} · {{ item.city }}</p><p class="muted">{{ item.start_date }} — {{ item.end_date }}</p>{% if item.relevant_coursework %}<p>{{ item.relevant_coursework }}</p>{% endif %}{% else %}<h3>{{ item.title }}</h3><p class="sub">{{ item.category }}{% if item.course_name %} · {{ item.course_name }}{% endif %}</p><p>{{ item.description }}</p>{% if item.technologies_used %}<p><b>Tools:</b> {{ item.technologies_used }}</p>{% endif %}{% if item.outcome %}<p><b>Outcome:</b> {{ item.outcome }}</p>{% endif %}{% if item.project_url %}<a class="button secondary" href="{{ item.project_url }}" target="_blank" rel="noreferrer">View project ↗</a>{% endif %}{% endif %}</article>{% endfor %}</div></section>{% endif %}{% endfor %}
-{% if skills %}<section><p class="eyebrow">CAPABILITIES</p><h2>Skills</h2><div class="skill-grid">{% for item in skills %}<div class="skill"><b>{{ item.name }}</b><span>{{ item.category }}{% if item.proficiency_level %} · {{ item.proficiency_level }}{% endif %}</span></div>{% endfor %}</div></section>{% endif %}
-{% if certifications %}<section><p class="eyebrow">CREDENTIALS</p><h2>Certifications</h2><ul class="certs">{% for item in certifications %}<li>{{ item.name }}</li>{% endfor %}</ul></section>{% endif %}
-{% if volunteers %}<section><p class="eyebrow">COMMUNITY</p><h2>Volunteer experience</h2><div class="cards">{% for item in volunteers %}<article class="card"><h3>{{ item.organization_name }}</h3><p>{{ item.role_title }} · {{ item.start_date }} — {{ item.end_date }}</p>{% if item.description %}<p>{{ item.description }}</p>{% endif %}</article>{% endfor %}</div></section>{% endif %}</main>{% endblock %}
+{% extends "base.html" %}
+{% block body %}
+<a class="skip-link" href="#main-content">Skip to main content</a>
+{% set evidence = namespace(achievement=None, project=None, role=None, study=None) %}
+{% for item in experiences %}
+  {% if evidence.role is none and item.is_current %}{% set evidence.role = item %}{% endif %}
+  {% if evidence.achievement is none and item.achievements %}
+    {% set first_achievement = item.achievements.split('\n')[0]|trim %}
+    {% if first_achievement %}{% set evidence.achievement = first_achievement %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% for item in projects %}
+  {% if evidence.project is none and item.outcome %}{% set evidence.project = item %}{% endif %}
+{% endfor %}
+{% if evidence.role is none and experiences %}{% set evidence.role = experiences[0] %}{% endif %}
+{% for item in educations %}
+  {% if evidence.study is none and item.field_of_study %}{% set evidence.study = item.field_of_study %}{% endif %}
+{% endfor %}
+
+<main id="main-content" class="wrap">
+  <header class="hero">
+    <div class="hero-copy">
+      <h1>{{ person.full_name }}</h1>
+      {% if evidence.role and evidence.study %}
+      <p class="lead">Hands-on {{ evidence.role.role_title|lower }} experience, informed by {{ evidence.study }}.</p>
+      {% elif person.career_goal %}<p class="lead">{{ person.career_goal }}</p>{% endif %}
+      {% if person.career_goal %}<p class="career-goal">{{ person.career_goal }}</p>{% endif %}
+      <p class="muted">{{ [person.location_city, person.location_state, person.location_country]|select|join(', ') }}</p>
+    </div>
+    <aside class="contact" aria-label="Contact information">
+      <span>GET IN TOUCH</span>
+      {% if person.email %}<a href="mailto:{{ person.email }}">{{ person.email }}</a>{% endif %}
+      {% if person.phone %}<p>{{ person.phone }}</p>{% endif %}
+      {% for item in links %}
+        <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.label }} &nearr;</a>
+      {% endfor %}
+    </aside>
+  </header>
+
+  {% if evidence.achievement or evidence.project %}
+  <section class="hero-proof" aria-labelledby="hero-proof-title">
+    <h2 id="hero-proof-title" class="visually-hidden">Selected career evidence</h2>
+    {% if evidence.achievement %}
+    <div class="hero-proof-item">
+      <h3>Logistics operations</h3>
+      <p>{{ evidence.achievement }}</p>
+    </div>
+    {% endif %}
+    {% if evidence.project %}
+    <div class="hero-proof-item">
+      <h3>{{ evidence.project.title }}</h3>
+      <p>{{ evidence.project.outcome }}</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if person.summary or experiences or educations or projects or skills or certifications or volunteers %}
+  <nav class="profile-nav" aria-label="Profile sections">
+    <ul>
+      {% if person.summary %}<li><a href="#about">About</a></li>{% endif %}
+      {% if experiences %}<li><a href="#experience">Experience</a></li>{% endif %}
+      {% if educations %}<li><a href="#education">Education</a></li>{% endif %}
+      {% if projects %}<li><a href="#projects">Projects</a></li>{% endif %}
+      {% if skills %}<li><a href="#skills">Skills</a></li>{% endif %}
+      {% if certifications %}<li><a href="#certifications">Certifications</a></li>{% endif %}
+      {% if volunteers %}<li><a href="#volunteer">Volunteer experience</a></li>{% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% if person.summary %}
+  <section id="about" aria-labelledby="about-title">
+    <h2 id="about-title">Professional summary</h2>
+    <p>{{ person.summary }}</p>
+  </section>
+  {% endif %}
+
+  {% for heading, section_id, items in [('Experience', 'experience', experiences), ('Education', 'education', educations), ('Projects', 'projects', projects)] %}
+    {% if items %}
+    <section id="{{ section_id }}" aria-labelledby="{{ section_id }}-title">
+      <h2 id="{{ section_id }}-title">{{ heading }}</h2>
+      <div class="cards">
+        {% for item in items %}
+        <article class="card{% if heading == 'Projects' and item.outcome %} project-card{% endif %}">
+          {% if heading == 'Experience' %}
+            <h3>{{ item.role_title }}</h3>
+            <p class="sub">{{ item.company_name }} &middot; {{ item.city }}{% if item.state %}, {{ item.state }}{% endif %}</p>
+            <p class="muted">{{ item.start_date }} &mdash; {{ 'Present' if item.is_current else item.end_date }}</p>
+            {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+            {% if item.achievements %}<ul>{% for line in item.achievements.split('\n') if line %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+          {% elif heading == 'Education' %}
+            <h3>{{ item.degree_name }} {{ item.field_of_study }}</h3>
+            <p class="sub">{{ item.institution_name }} &middot; {{ item.city }}</p>
+            <p class="muted">{{ item.start_date }} &mdash; {{ item.end_date }}</p>
+            {% if item.relevant_coursework %}<p>{{ item.relevant_coursework }}</p>{% endif %}
+          {% else %}
+            <h3>{{ item.title }}</h3>
+            <p class="sub">{{ item.category }}{% if item.course_name %} &middot; {{ item.course_name }}{% endif %}</p>
+            {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+            {% if item.technologies_used %}<p><b>Tools:</b> {{ item.technologies_used }}</p>{% endif %}
+            {% if item.outcome %}<p class="project-outcome"><b>Outcome:</b> {{ item.outcome }}</p>{% endif %}
+            {% if item.project_url %}<a class="button secondary" href="{{ item.project_url }}" target="_blank" rel="noopener noreferrer">View project &nearr;</a>{% endif %}
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  {% endfor %}
+
+  {% if skills %}
+  <section id="skills" aria-labelledby="skills-title">
+    <h2 id="skills-title">Skills</h2>
+    <div class="skill-grid">
+      {% for item in skills %}
+      <div class="skill"><b>{{ item.name }}</b><span>{{ item.category }}{% if item.proficiency_level %} &middot; {{ item.proficiency_level }}{% endif %}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if certifications %}
+  <section id="certifications" aria-labelledby="certifications-title">
+    <h2 id="certifications-title">Certifications</h2>
+    <ul class="certs">{% for item in certifications %}<li>{{ item.name }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  {% if volunteers %}
+  <section id="volunteer" aria-labelledby="volunteer-title">
+    <h2 id="volunteer-title">Volunteer experience</h2>
+    <div class="cards">
+      {% for item in volunteers %}
+      <article class="card">
+        <h3>{{ item.organization_name }}</h3>
+        <p>{{ item.role_title }} &middot; {{ item.start_date }} &mdash; {{ item.end_date }}</p>
+        {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}
