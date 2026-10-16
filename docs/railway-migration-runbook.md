@@ -13,20 +13,27 @@ This runbook records the manual sequence for a reviewed migration. It does not a
 
 ## Preflight and staging
 
-Before making changes, record the Railway project and environment, existing web and PostgreSQL service names, region, repository and branch, build method, start command, health check, generated domain, and current custom domains. Record variable names only; do not copy secret values into notes. Preserve the existing services and PostgreSQL instance.
+Before making changes, record the Railway project and environment, web and PostgreSQL service names (record the web service as absent if none exists), region, repository and branch, build method, start command, health check, generated domain, and current custom domains. Record variable names only; do not copy secret values into notes. Preserve the existing PostgreSQL instance. During this read-only preflight, confirm the intended GitHub repository and branch and whether Railway's GitHub integration has access to that repository. Do not create a service or change settings during preflight.
 
 Confirm whether the project has an isolated preview environment and disposable database. Run migration and transfer integration tests against a disposable PostgreSQL database before staging verification. The test guard requires a loopback host and a database name beginning `career_platform_test_`; never use Railway or production credentials for this test. If Railway has no isolated staging database, keep destructive and failure-injection tests local and reserve Railway PostgreSQL for the final import.
 
-Configure only the existing Railway web service after the implementation is reviewed:
+After separate authorization, configure the existing Railway web service. If no web service exists, create one in the existing project and environment from the reviewed GitHub repository and branch: use **New** on the project canvas, choose the GitHub repository source, and select the approved repository and branch. If the Railway account is not linked to GitHub, link it and grant the Railway GitHub App access to the selected repository only. Confirm the repository and branch before continuing. Railway's current service flow also supports connecting the source from **Service Settings → Service Source → Connect Repo**. At least one project member must have a linked GitHub account with contributor access for GitHub autodeploys. See [Railway Services](https://docs.railway.com/services) and [Controlling GitHub Autodeploys](https://docs.railway.com/deployments/github-autodeploys).
+
+Connecting a GitHub branch can enable deployments on pushes. Review the pending Railway changes. Deploy in Step 3 only to an isolated staging environment and only after separate authorization; otherwise hold deployment until Task 6 Step 5. Do not generate the root custom domain at this stage. Preserve the existing PostgreSQL service.
+
+Configure these application settings on the web service:
 
 - Set `APP_ENV=production`.
-- Add `DATABASE_URL` as a Railway variable reference to the existing PostgreSQL service. Do not copy its credential value into application configuration.
-- For an isolated staging environment only, add staging-specific `ADMIN_USERNAME` and `ADMIN_PASSWORD` as Railway secrets to verify staging admin authentication. Do not configure production admin credentials at this stage. Production writes remain disabled until the domain checks and security tests pass and `ADMIN_ALLOWED_ORIGINS` contains the exact verified HTTPS origin or origins.
+- Add `DATABASE_URL` as a Railway variable reference to the PostgreSQL service for the selected environment. Do not copy its credential value into application configuration. In Step 3, use only an isolated staging database for migrations or rehearsal imports. If there is no isolated staging database, leave the existing Railway PostgreSQL service untouched until the final snapshot/import steps.
+- For an isolated staging environment only, add staging-specific `ADMIN_USERNAME` and `ADMIN_PASSWORD` as Railway secrets to verify staging admin authentication. Do not configure production admin credentials at this stage.
+- Set `ADMIN_ALLOWED_ORIGINS` to the exact verified HTTPS origin or origins only when that environment is ready for admin-write verification. Production writes must remain disabled until the final domain checks and security gate pass.
+- Railway supplies `PORT` at runtime; do not set a fixed port value.
 - Use `uvicorn main:app --host 0.0.0.0 --port $PORT` as the start command.
-- Apply schema migrations explicitly with `alembic upgrade head` through the Railway-supported one-off or pre-deploy mechanism confirmed during preflight. Verify the migration revision before importing data.
+- Confirm the appropriate healthcheck path during preflight; the approved plan does not prescribe a path, so do not invent one.
+- For isolated staging only, apply schema migrations explicitly with `alembic upgrade head` through the Railway-supported one-off or pre-deploy mechanism confirmed during preflight. Verify the migration revision and zero application rows before rehearsal import. If no isolated staging database exists, defer migration of the existing Railway PostgreSQL service until Task 6 Step 4, after the final Azure snapshot is ready and the target is verified empty.
 - Do not configure Cloudflare proxying, SSL/TLS settings, or DNS during staging.
 
-Verify the generated Railway HTTPS domain first: homepage, static stylesheet, all profile sections and counts, admin authentication, allowlisted same-origin write behavior in the isolated environment, rejection of missing and cross-origin `Origin` values, and absence of sample data. Send spoofed `X-Forwarded-Proto`, `X-Forwarded-Host`, and `Forwarded` headers during the security check; they must not bypass the origin allowlist. Keep production writes disabled if the trust boundary has not been established and the safe alternative has not passed its security tests.
+For an isolated staging deployment, verify its generated Railway HTTPS domain: homepage, static stylesheet, all profile sections and counts, staging admin authentication, allowlisted same-origin write behavior, rejection of missing and cross-origin `Origin` values, and absence of sample data. Send spoofed `X-Forwarded-Proto`, `X-Forwarded-Host`, and `Forwarded` headers during the security check; they must not bypass the origin allowlist. If no isolated staging environment exists, defer generated-domain and app verification until Task 6 Step 5, after the final import and authorized deployment. Keep production writes disabled if the trust boundary has not been established and the safe alternative has not passed its security tests.
 
 ## Rehearsal data transfer
 
