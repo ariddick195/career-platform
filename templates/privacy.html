@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Privacy | Adam Riddick{% endblock %}
+{% block body %}
+<main class="wrap privacy-page">
+  <h1>Privacy</h1>
+  <p class="privacy-updated">Updated October 20, 2026</p>
+
+  <section aria-labelledby="current-title">
+    <h2 id="current-title">What happens when you visit</h2>
+    <p>This site uses Google Analytics 4 (GA4) to help the owner understand which pages are viewed and, if outbound-click measurement is enabled, which links to other websites visitors use. Google receives the analytics events and related browser and page information so GA4 can provide reports.</p>
+    <p>The GA4 tag stays off until you choose &ldquo;Accept analytics.&rdquo; If you reject analytics, or have not made a choice, this site does not load the GA4 tag. Your choice is saved in this browser so it can be remembered on later visits. You can change it at any time with the &ldquo;Privacy settings&rdquo; link in the footer.</p>
+    <p>The website host also receives the information needed to deliver a page, such as the requested address, request time, and connection and browser details. The hosting provider's request-log settings and retention period have not been confirmed.</p>
+  </section>
+
+  <section aria-labelledby="fonts-title">
+    <h2 id="fonts-title">Fonts and outside websites</h2>
+    <p>The site loads its fonts from Google Fonts. Your browser requests font files from Google, which can receive connection details such as your IP address and browser information. This request helps display the site's chosen typefaces.</p>
+    <p>The profile may link to other websites. If you follow one, that website receives your visit and handles information under its own privacy practices. The email link opens your email app; if you choose to send a message, your email provider and the recipient process it. The site does not receive that message through a contact form.</p>
+  </section>
+
+  <section aria-labelledby="forms-title">
+    <h2 id="forms-title">Site editing forms</h2>
+    <p>The forms on <code>/admin</code> are for the site owner to maintain profile information, not for visitor inquiries. They send profile details entered by the owner to this site's server, where the information is saved in the site's database. This site has no visitor contact form.</p>
+  </section>
+
+  <section aria-labelledby="analytics-title">
+    <h2 id="analytics-title">Google Analytics</h2>
+    <p>After you accept analytics, GA4 sends a <code>page_view</code> event when a page loads. This can include the page address and title, the referring page, and technical details such as browser language, browser and device type, and approximate location. Google says GA4 uses an IP address to estimate location and does not log or store the IP address itself. The site owner uses the reports to understand page activity.</p>
+    <p>GA4 can also send a <code>click</code> event for links that take you to another website when outbound-click measurement (part of Enhanced Measurement) is enabled for the GA4 web data stream. That event can include the destination URL (<code>link_url</code>), destination domain (<code>link_domain</code>), and whether the link is outbound (<code>outbound</code>). The setting for this site's GA4 stream has not been verified, so outbound clicks may not currently be recorded.</p>
+    <p>When GA4 is allowed to run, its default tag uses first-party cookies such as <code>_ga</code> to distinguish browsers and <code>_ga_&lt;container-id&gt;</code> to maintain session state. If you reject or withdraw analytics, the site stops loading GA4 on subsequent pages and attempts to remove accessible GA cookies for this site's domain. The exact cookie settings, data retention, and any links to other Google services have not been verified.</p>
+  </section>
+
+  <section aria-labelledby="choices-title">
+    <h2 id="choices-title">Your choices</h2>
+    <p>You can accept or reject analytics in the site's choice panel. Your selection is stored in this browser's local storage. Use &ldquo;Privacy settings&rdquo; in the footer to change your choice later. If both local and session storage are unavailable, analytics stops on the current page, but your choice may not persist across a page reload or later visit.</p>
+    <p>Google Fonts is loaded separately from Google Analytics. The site owner has not confirmed the GA4 property's retention and sharing settings or the hosting provider's request-log retention.</p>
+  </section>
+</main>
+{% endblock %}

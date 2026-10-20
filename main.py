@@ -159,6 +159,17 @@ def home(request: Request):
     return templates.TemplateResponse(request=request, name="home.html", context=context)
 
 
+@app.get("/privacy")
+def privacy(request: Request):
+    try:
+        person = profile_data()["person"]
+    except SQLAlchemyError:
+        person = None
+    return templates.TemplateResponse(
+        request=request, name="privacy.html", context={"person": person}
+    )
+
+
 @admin_router.get("/admin")
 def admin(request: Request):
     data = profile_data()

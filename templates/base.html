@@ -5,12 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Adam Riddick | Career Profile{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/analytics-consent.js" defer></script>
 </head>
 <body>
   <nav class="topbar" aria-label="Primary">
     <a class="brand" href="/">AR<span>.</span></a>
   </nav>
   {% block body %}{% endblock %}
-  <footer>&copy; {{ person.full_name if person else 'Career Profile' }}</footer>
+  <section id="analytics-consent" class="analytics-consent" aria-labelledby="analytics-consent-title" hidden>
+    <div>
+      <h2 id="analytics-consent-title">Your analytics choice</h2>
+      <p>Choose whether to allow Google Analytics. If you accept, it will measure page views and may measure outbound link clicks. You can change this choice later using Privacy settings.</p>
+      <p><a href="/privacy">Read the Privacy page</a></p>
+      <div class="analytics-consent-actions">
+        <button id="analytics-accept" class="button" type="button">Accept analytics</button>
+        <button id="analytics-reject" class="button secondary" type="button">Reject analytics</button>
+      </div>
+    </div>
+  </section>
+  <p id="analytics-consent-status" class="visually-hidden" role="status" aria-live="polite"></p>
+  <footer>
+    <span>&copy; {{ person.full_name if person else 'Career Profile' }}</span>
+    <a href="/privacy">Privacy</a>
+    <button id="analytics-settings" class="footer-settings" type="button" aria-controls="analytics-consent" aria-expanded="false">Privacy settings</button>
+  </footer>
 </body>
 </html>
