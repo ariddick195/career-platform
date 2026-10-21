@@ -31,18 +31,31 @@ function createPage(savedChoice = null, initialCookies = '', options = {}) {
     return elements.get(id);
   }
 
-  const document = {
-    getElementById: element,
-    createElement(tag) { return { tagName: tag.toUpperCase() }; },
-    querySelectorAll() { return []; },
-    head: { appendChild(script) { scripts.push(script); } },
-    get cookie() { return initialCookies; },
-    set cookie(value) { cookieWrites.push(value); },
-  };
-  const window = {
-    location: { hostname: 'www.example.test', reloadCount: 0, reload() { this.reloadCount += 1; } },
-    dataLayer: undefined,
-  };
+  const documentListeners = {};
+
+const document = {
+  getElementById: element,
+  addEventListener(type, callback) {
+    documentListeners[type] = callback;
+  },
+  createElement(tag) {
+    return { tagName: tag.toUpperCase() };
+  },
+  querySelectorAll() {
+    return [];
+  },
+  head: {
+    appendChild(script) {
+      scripts.push(script);
+    },
+  },
+  get cookie() {
+    return initialCookies;
+  },
+  set cookie(value) {
+    cookieWrites.push(value);
+  },
+};
   const localStorage = {
     getItem(key) { return storage.has(key) ? storage.get(key) : null; },
     setItem(key, value) {
@@ -50,7 +63,7 @@ function createPage(savedChoice = null, initialCookies = '', options = {}) {
       storage.set(key, value);
     },
   };
-  const sessionStorageApi = {
+    const sessionStorageApi = {
     getItem(key) { return sessionStorage.has(key) ? sessionStorage.get(key) : null; },
     removeItem(key) { sessionStorage.delete(key); },
     setItem(key, value) {
@@ -58,6 +71,17 @@ function createPage(savedChoice = null, initialCookies = '', options = {}) {
       sessionStorage.set(key, value);
     },
   };
+
+  const window = {
+  location: {
+    hostname: 'localhost',
+    reloadCount: 0,
+    reload() {
+      this.reloadCount++;
+    },
+  },
+};
+
   window.localStorage = localStorage;
   window.sessionStorage = sessionStorageApi;
   const context = { window, document, localStorage, URL, Date, console };

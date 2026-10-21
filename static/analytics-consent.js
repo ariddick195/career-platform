@@ -74,7 +74,7 @@
     }
   }
 
-  function loadAnalytics() {
+   function loadAnalytics() {
     if (analyticsLoaded || analyticsWithdrawn) return;
     analyticsLoaded = true;
     window.dataLayer = window.dataLayer || [];
@@ -82,11 +82,39 @@
     window.gtag('js', new Date());
     window.gtag('config', measurementId);
 
+    // Track external links only after analytics consent is granted.
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[href]');
+      if (!link) return;
+
+      let destination;
+      try {
+        destination = new URL(link.href, window.location.href);
+      } catch {
+        return;
+      }
+
+      if (
+        !['http:', 'https:'].includes(destination.protocol) ||
+        destination.hostname === window.location.hostname
+      ) {
+        return;
+      }
+
+      window.gtag('event', 'click', {
+        link_url: destination.href,
+        link_domain: destination.hostname,
+        outbound: true,
+        transport_type: 'beacon'
+      });
+    }, true);
+
     const script = document.createElement('script');
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
     document.head.appendChild(script);
   }
+
 
   function stopAnalytics() {
     analyticsWithdrawn = true;
