@@ -10,7 +10,7 @@
 
 - **Repository URL:** https://github.com/ariddick195/career-platform
 - **Live HTTPS URL:** https://adamriddick.me Ã¢â‚¬â€ HTTPS returned successfully during read-only checks, but the current hosting platform and Railway cutover have not been verified.
-- **Current local and GitHub commit SHA:** `7d4505f68765a5632b937a9266644c7c4a0b049b` Ã¢â‚¬â€ the local `main` branch was reported up to date with `origin/main`; the deployed revision has not been verified.
+- **Current local and GitHub commit SHA:** `d16e2599c07c1755ed60d36a9d925311485e6c3c` Ã¢â‚¬â€ the local `main` branch was reported up to date with `origin/main`; the deployed revision has not been verified.
 
 ## Rubric evidence index
 
