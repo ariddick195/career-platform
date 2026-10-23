@@ -141,22 +141,32 @@ def profile_data():
         return result
 
 
+# Last profile this worker read successfully. On a database failure the page
+# keeps showing that real profile (never sample data) and marks projects as
+# unavailable with HTTP 503. A later successful read replaces it, so recovery
+# needs no restart.
+_last_good_profile: dict | None = None
+
+
+def _empty_context() -> dict:
+    return {"person": None, **{plural: [] for plural in PLURALS.values()}}
+
+
 @app.get("/")
 def home(request: Request):
+    global _last_good_profile
     try:
         context = profile_data()
+        _last_good_profile = context
+        context = {**context, "projects_unavailable": False}
+        status_code = 200
     except SQLAlchemyError:
-        context = {
-            "person": None,
-            "educations": [],
-            "experiences": [],
-            "projects": [],
-            "skills": [],
-            "certifications": [],
-            "volunteers": [],
-            "links": [],
-        }
-    return templates.TemplateResponse(request=request, name="home.html", context=context)
+        cached = _last_good_profile or _empty_context()
+        context = {**cached, "projects": [], "projects_unavailable": True}
+        status_code = 503
+    return templates.TemplateResponse(
+        request=request, name="home.html", context=context, status_code=status_code
+    )
 
 
 @app.get("/privacy")

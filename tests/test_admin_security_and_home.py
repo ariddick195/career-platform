@@ -134,14 +134,45 @@ class AdminSecurityAndHomepageTests(unittest.TestCase):
         self.assertNotIn("Manage content", body)
 
     def test_homepage_renders_without_inventing_data_when_database_is_unavailable(self):
+        main._last_good_profile = None
         failure = OperationalError("SELECT", {}, Exception("database unavailable"))
         with patch.object(main, "profile_data", side_effect=failure):
             status, _, body = asgi_request()
 
-        self.assertEqual(status, 200)
+        self.assertEqual(status, 503)
         self.assertIn('<main id="main-content"', body)
+        self.assertIn("Projects temporarily unavailable", body)
         self.assertNotIn("Warehouse Location Optimization Analysis", body)
-        self.assertNotIn('<section id="projects"', body)
+
+    def test_database_failure_keeps_profile_and_recovers_without_restart(self):
+        main._last_good_profile = None
+        status, _, body = asgi_request()
+        self.assertEqual(status, 200)
+        self.assertIn("Warehouse Location Optimization Analysis", body)
+
+        failure = OperationalError("SELECT", {}, Exception("database unavailable"))
+        with patch.object(main, "profile_data", side_effect=failure):
+            status, _, body = asgi_request()
+        self.assertEqual(status, 503)
+        self.assertIn("Adam Riddick", body)
+        self.assertIn("Projects temporarily unavailable", body)
+        self.assertNotIn("Warehouse Location Optimization Analysis", body)
+
+        status, _, body = asgi_request()
+        self.assertEqual(status, 200)
+        self.assertIn("Warehouse Location Optimization Analysis", body)
+        self.assertNotIn("Projects temporarily unavailable", body)
+
+    def test_empty_database_returns_200_without_sample_projects(self):
+        main._last_good_profile = None
+        with self.engine.begin() as db:
+            for table in ("link", "volunteer_experience", "certification", "skill",
+                          "project", "experience", "education", "person"):
+                db.execute(text(f"DELETE FROM {table}"))
+        status, _, body = asgi_request()
+        self.assertEqual(status, 200)
+        self.assertNotIn("Warehouse Location Optimization Analysis", body)
+        self.assertNotIn("Projects temporarily unavailable", body)
 
     def test_production_stylesheet_url_is_relative_and_ignores_forwarded_headers(self):
         with patch.dict(

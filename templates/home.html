@@ -109,6 +109,13 @@
     {% endif %}
   {% endfor %}
 
+  {% if projects_unavailable %}
+  <section id="projects" aria-labelledby="projects-title">
+    <h2 id="projects-title">Projects</h2>
+    <p class="muted" role="status">Projects temporarily unavailable.</p>
+  </section>
+  {% endif %}
+
   {% if skills %}
   <section id="skills" aria-labelledby="skills-title">
     <h2 id="skills-title">Skills</h2>
