@@ -1,0 +1,152 @@
+# Railway Migration Evidence
+
+All times are Pacific (PDT) on Friday, October 23, 2026, unless noted. Command output is copied from the PowerShell session on my laptop. Items marked **TODO** still need a screenshot or a check.
+
+## 1. Railway setup observed
+
+Observed in the Railway dashboard at about 4:45 PM:
+
+- Project `secure-analysis`, environment `staging`.
+- Web service `mindful-creativity`, connected to `ariddick195/career-platform` on GitHub, branch `main`. Generated domain `mindful-creativity-staging.up.railway.app`, port 8080, Python 3.13.
+- PostgreSQL service `Postgres-UR2d`, status Online, with volume `postgres-volume--mx6`.
+- Trial: **20 days or $4.67 left** as of October 23, 2026 (about November 12, 2026).
+- Postgres Database tab lists the Alembic schema tables: `alembic_version`, `person`, `education`, `experience`, `project`, `skill`, `certification`, `volunteer_experience`, `link`.
+- The Railway-generated URL showed my full profile and projects.
+
+Screenshots: **TODO** `screenshots/railway-canvas.png`, `screenshots/railway-postgres-tables.png`
+
+## 2. Current data comparison
+
+Source counts (Azure SQLite backup, from the [migration runbook](../railway-migration-runbook.md)) against Railway PostgreSQL:
+
+| Table | Azure source | Railway | Match |
+|---|---:|---:|---|
+| person | 1 | TODO | TODO |
+| education | 1 | TODO | TODO |
+| experience | 1 | TODO | TODO |
+| project | 3 | TODO | TODO |
+| skill | 4 | TODO | TODO |
+| certification | 3 | TODO | TODO |
+| volunteer_experience | 3 | TODO | TODO |
+| link | 4 | TODO | TODO |
+
+**Real change made after the transfer (October 23, 2026, about 4:50 PM):** In the Railway `link` table, I replaced the LinkedIn URL, which pointed to a placeholder (`https://www.adamriddick.me/PLACEHOLDER`), with my real LinkedIn profile URL. The corrected link appears on the live site. The Azure database still has the placeholder, so the Railway database is a separate, current copy, not restored seed data.
+
+Screenshots: **TODO** `screenshots/railway-link-before.png`, `screenshots/railway-link-after.png`
+
+## 3. Before cutover
+
+Rollback value recorded first: the Cloudflare root record was **A `adamriddick.me` -> `9.205.27.2`** (Azure VM), DNS only.
+
+```text
+> nslookup adamriddick.me 1.1.1.1
+Name:    adamriddick.me
+Address:  9.205.27.2
+
+> curl.exe -si https://adamriddick.me     (4:44 PM)
+HTTP/1.1 200 OK
+Server: nginx/1.24.0 (Ubuntu)
+```
+
+Result: the site was live over HTTPS, served by Nginx on the Azure VM.
+
+## 4. Cutover
+
+About 5:04 PM:
+
+1. In Railway, added custom domain `adamriddick.me` on port 8080. Railway asked for a CNAME `@ -> kvovk0pv.up.railway.app` and a TXT record `_railway-verify`.
+2. I used Railway's one-click Cloudflare setup. It created the CNAME and TXT records and deleted the conflicting A record (`9.205.27.2`). It left the `www` record and all Zoho mail records (MX, SPF, DKIM, DMARC, verification) unchanged.
+3. The one-click setup created the CNAME as **Proxied** (orange cloud), not DNS only.
+
+```text
+> curl.exe -si https://adamriddick.me     (5:07 PM)
+HTTP/1.1 200 OK
+Server: cloudflare
+x-railway-request-id: Pbl5GGB2Tt-C400HozsQ6Q
+
+> nslookup adamriddick.me 1.1.1.1
+Addresses:  104.21.86.2, 172.67.213.78 (+ IPv6)
+```
+
+Result: Railway answered (`x-railway-request-id`), through Cloudflare's proxy.
+
+## 5. Investigated failure: TLS certificate after switching to DNS only
+
+**Symptom.** To follow the course rule (records that reach my server are DNS only), I switched the root CNAME to DNS only at about 5:10 PM. DNS then pointed straight to Railway, but HTTPS failed:
+
+```text
+> nslookup adamriddick.me 1.1.1.1     (5:13 PM)
+Address:  69.46.46.83
+
+> curl.exe -sSi https://adamriddick.me
+curl: (60) schannel: SNI or certificate check failed: SEC_E_WRONG_PRINCIPAL (0x80090322) - The target principal name is incorrect.
+```
+
+**Checks.**
+- 5:19 PM: Railway's domain entry showed "Cloudflare proxy detected".
+- 5:20 PM: Railway showed "Failed to issue TLS certificate. Let's Encrypt rate limit reached. Please wait before retrying." It also said this error is not retried automatically.
+
+**Diagnosis.** `SEC_E_WRONG_PRINCIPAL` means the server presented a certificate for a different name (Railway's default `*.up.railway.app` certificate), because no certificate for `adamriddick.me` had been issued. Railway had checked DNS while the record was proxied, so it relied on Cloudflare for HTTPS and did not issue its own certificate. When it tried after the switch, Let's Encrypt refused because of a rate limit on certificate requests for this domain.
+
+**Temporary repair.** At about 5:22 PM, I switched the root CNAME back to Proxied so Cloudflare provides the visitor-facing certificate:
+
+```text
+> curl.exe -sSi https://adamriddick.me     (5:23 PM)
+HTTP/1.1 200 OK
+Server: cloudflare
+x-railway-request-id: d_0kbspISbijg7fjCx5-qw
+```
+
+**Remaining limitation.** The root record is Proxied, not DNS only as the course requires. Visitors see Cloudflare's certificate, not a Railway-issued one.
+
+**Next check.** After the rate limit window passes: switch the CNAME to DNS only, remove and re-add `adamriddick.me` in Railway (without one-click setup), wait for the certificate, and repeat `curl.exe -sSi https://adamriddick.me` and the `openssl` certificate check. **TODO: record the result here.**
+
+Screenshots: **TODO** `screenshots/railway-proxy-detected.png`, `screenshots/railway-tls-rate-limit.png`
+
+## 6. www redirect
+
+At about 5:25 PM, I set the `www` CNAME (target `adamriddick.me`) to Proxied and created the Cloudflare redirect rule `Redirect www to root`: Request URL `http*://www.*`, Target URL `https://${2}`, 301, preserve query string.
+
+```text
+> curl.exe -sSI http://www.adamriddick.me     (5:27 PM)
+HTTP/1.1 301 Moved Permanently
+Location: https://adamriddick.me/
+Server: cloudflare
+
+> curl.exe -sSI https://www.adamriddick.me
+HTTP/1.1 301 Moved Permanently
+Location: https://adamriddick.me/
+Server: cloudflare
+```
+
+Result: both `http://www` and `https://www` redirect to the root with a 301.
+
+## 7. Verified website update
+
+- **Commit:** `ae000c0`, "Return 503 with last profile when database is down; fix submission encoding; add Zoho evidence".
+- **Review:** I reviewed the diff locally before committing. Unit tests: 52 run, all passed except one macOS-only path test on a Mac; on Windows: **TODO**.
+- **Deployment:** Railway's Deployments tab showed this commit as **ACTIVE, "Deployment successful", via GitHub** at about 4:45 PM. Screenshot: **TODO** `screenshots/railway-deploy-ae000c0.png`
+- **Live result:** After cutover, `https://adamriddick.me` returns 200 from Railway (section 4). The new behavior (HTTP 503 and "Projects temporarily unavailable" when the database is down) is covered by unit tests; I did not take the production database down to show it live.
+
+## 8. Rollback
+
+**Code.** In Railway, Deployments: open the previous successful deployment's menu and choose Redeploy. Or run `git revert <commit>` and push, which Railway deploys automatically.
+
+**Data.** Since cutover, Railway PostgreSQL has had at least one write that Azure does not have (the LinkedIn fix). Pointing DNS back to Azure would serve stale data. Before any rollback:
+
+1. Stop admin writes on Railway.
+2. Back up PostgreSQL (Railway Backups tab).
+3. Export Railway data to a **new** SQLite file with `python -m scripts.transfer_database --direction postgres-to-sqlite --sqlite-path <new-file>.db` (with `DATABASE_URL` set to the Railway database for that one command), and verify counts.
+4. Install that file on the Azure VM, then restart the service.
+
+**DNS.** In Cloudflare, change the root record back to **A `adamriddick.me` -> `9.205.27.2`**, DNS only, and remove the `_railway-verify` TXT. Azure's Let's Encrypt certificate covers `adamriddick.me` and `www.adamriddick.me`.
+
+**Azure state.** The VM stays running, as the instructor requires, until told otherwise.
+
+## 9. Open items
+
+- [ ] Row counts in section 2
+- [ ] Screenshots listed above
+- [ ] Railway certificate retry (section 5)
+- [ ] Review the pending "Apply 1 change" in Railway before applying it
+- [ ] Remove the Postgres TCP Proxy if it is enabled
