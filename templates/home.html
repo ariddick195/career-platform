@@ -141,8 +141,8 @@
       {% for item in volunteers %}
       <article class="card">
         <h3>{{ item.organization_name }}</h3>
-        <p>{{ item.role_title }} &middot; {{ item.start_date }} &mdash; {{ item.end_date }}</p>
-        {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+        <p>{{ item.role_title }} &middot; {{ item.start_date }}{% if item.end_date is placeholder %} &mdash; <span class="placeholder">end date to be added</span>{% elif item.end_date %} &mdash; {{ item.end_date }}{% endif %}</p>
+        {% if item.description is placeholder %}<p class="placeholder">Details to be added.</p>{% elif item.description %}<p>{{ item.description }}</p>{% endif %}
       </article>
       {% endfor %}
     </div>

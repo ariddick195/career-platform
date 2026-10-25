@@ -163,6 +163,22 @@ class AdminSecurityAndHomepageTests(unittest.TestCase):
         self.assertIn("Warehouse Location Optimization Analysis", body)
         self.assertNotIn("Projects temporarily unavailable", body)
 
+    def test_placeholder_values_are_labeled_not_shown_raw(self):
+        main._last_good_profile = None
+        with self.engine.begin() as db:
+            db.execute(
+                text(
+                    "INSERT INTO volunteer_experience (person_id, organization_name, role_title, start_date, end_date, description) "
+                    "VALUES (1, 'Greenworks Food Service', 'Volunteer', '2024', 'PLACEHOLDER', 'PLACEHOLDER')"
+                )
+            )
+        status, _, body = asgi_request()
+        self.assertEqual(status, 200)
+        self.assertIn("Greenworks Food Service", body)
+        self.assertIn("end date to be added", body)
+        self.assertIn("Details to be added.", body)
+        self.assertNotIn("PLACEHOLDER", body)
+
     def test_empty_database_returns_200_without_sample_projects(self):
         main._last_good_profile = None
         with self.engine.begin() as db:

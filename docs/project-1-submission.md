@@ -53,7 +53,7 @@ Azure and Railway architecture, including the email and analytics paths: [README
 - PostgreSQL compatibility changes and transfer tool: commit `0e1c226`, [`scripts/transfer_database.py`](../scripts/transfer_database.py), [`tests/test_database_transfer.py`](../tests/test_database_transfer.py), [`migrations/`](../migrations/versions/0001_initial_schema.py).
 - Railway setup, real data change, cutover, rollback: [railway-migration.md](evidence/railway-migration.md).
 - Who manages what on Azure vs Railway: [README](../README.md#who-manages-what-azure-vs-railway).
-- Source and target comparison: all eight table counts match, plus evidence that Railway holds the transferred Azure rows, not seed data: [railway-migration.md §2](evidence/railway-migration.md#2-current-data-comparison).
+- Source and target comparison: all eight table counts match, every row ID and name matches the Azure source (October 25 read-only query), and Railway holds the transferred Azure rows, not seed data; the original transfer run was not recorded: [railway-migration.md §2](evidence/railway-migration.md#2-current-data-comparison).
 
 ### Verified website update (5) — verified
 

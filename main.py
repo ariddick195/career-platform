@@ -33,6 +33,14 @@ app = FastAPI(title="Adam Riddick Career Platform", lifespan=lifespan)
 app.add_middleware(ForwardedOriginMiddleware, trust_proxy=lambda scope: False)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
+
+
+def is_placeholder(value) -> bool:
+    """True for a stored value that marks information not yet provided."""
+    return isinstance(value, str) and value.strip().upper() == "PLACEHOLDER"
+
+
+templates.env.tests["placeholder"] = is_placeholder
 admin_basic_auth = HTTPBasic(auto_error=False)
 
 

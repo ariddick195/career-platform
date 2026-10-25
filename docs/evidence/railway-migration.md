@@ -34,6 +34,27 @@ Source counts (Azure SQLite backup, from the [migration runbook](../railway-migr
 | volunteer_experience | 3 | 3 | Yes |
 | link | 4 | 4 | Yes |
 
+### Row-by-row comparison (October 25, 2026)
+
+I read the Azure source database read-only through Azure Run command (`sqlite3` with `mode=ro` on `/var/lib/career-platform/career-platform.db`) and compared each row's ID and main field with the Railway tables shown in the screenshots below.
+
+| Table | Azure source rows (ID: value) | Railway | Match |
+|---|---|---|---|
+| person | 1: Adam Riddick | same | Yes |
+| education | 1: Loyola Marymount University | same | Yes |
+| experience | 1: LMU Distribution Center | same | Yes |
+| project | 1: Warehouse Location Optimization Analysis; 2: BMW Sales Graphs; 3: Music Sales Database Analysis | same | Yes |
+| skill | 6: Excel & Access; 7: Supply Chain Analytics; 8: Inventory Management; 9: Python & MySQL | same IDs and names | Yes |
+| certification | 1: IBM Databases and SQL for Data Science with Python; 2: IBM Data Visualization and Dashboards with Excel and Cognos; 3: Microsoft Office Specialist: Excel Associate (Office 2019) | same (names cut off in the screenshot) | Yes |
+| volunteer_experience | 1: House of Yahweh Thrift Store; 2: Special Games for Individuals with Disabilities; 3: Greenworks Food Service | same | Yes |
+| link | 1: Google Sheets; 2: Google Colab; 3: GitHub; 4: LinkedIn | same IDs and labels | Yes, except link 4's URL |
+
+The one difference is expected: link 4's URL is `PLACEHOLDER` on Azure and my real LinkedIn URL on Railway, because of the change described below. Matching IDs (including the skill IDs 6 to 9) show the rows were copied with their original keys, as the transfer tool does.
+
+![Azure source database, read-only query](screenshots/azure-source-query.png)
+
+**Not recorded:** the original transfer run itself (date, command, and the counts and digests the tool prints) was not saved. The comparison above was made afterward, on October 25, 2026, and shows the result of that transfer.
+
 **Real change made after the transfer (October 23, 2026, about 4:50 PM):** In the Railway `link` table, I replaced the LinkedIn URL, which pointed to a placeholder (`https://www.adamriddick.me/PLACEHOLDER`), with my real LinkedIn profile URL. The corrected link appears on the live site. The Azure database still has the placeholder, so the Railway database is a separate, current copy, not restored seed data.
 
 No screenshot exists of the placeholder in Railway before the change; I made the change before capturing it. After the change, row 4 of the `link` table holds the real LinkedIn URL:

@@ -130,3 +130,4 @@ footer a { text-decoration: underline; text-underline-offset: 3px; }
   .analytics-consent { margin: 18px 20px; padding: 20px; }
   footer { flex-wrap: wrap; }
 }
+.placeholder { color: var(--muted); font-style: italic; }
