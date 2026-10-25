@@ -47,13 +47,13 @@ Azure and Railway architecture, including the email and analytics paths: [README
 - `http://www` and `https://www` both return 301 to `https://adamriddick.me/`: [railway-migration.md §6](evidence/railway-migration.md#6-www-redirect).
 - **Limitation:** the root record is Proxied while Railway's certificate is blocked by a Let's Encrypt rate limit: [railway-migration.md §5](evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
 
-### Railway / PostgreSQL migration (25) — verified cutover, comparison partly pending
+### Railway / PostgreSQL migration (25) — verified
 
 - Plan and dependency inventory written before the change: see section 1.
 - PostgreSQL compatibility changes and transfer tool: commit `0e1c226`, [`scripts/transfer_database.py`](../scripts/transfer_database.py), [`tests/test_database_transfer.py`](../tests/test_database_transfer.py), [`migrations/`](../migrations/versions/0001_initial_schema.py).
 - Railway setup, real data change, cutover, rollback: [railway-migration.md](evidence/railway-migration.md).
 - Who manages what on Azure vs Railway: [README](../README.md#who-manages-what-azure-vs-railway).
-- **Pending:** table-by-table row counts and screenshots in [railway-migration.md §2](evidence/railway-migration.md#2-current-data-comparison).
+- Source and target comparison: all eight table counts match, plus evidence that Railway holds the transferred Azure rows, not seed data: [railway-migration.md §2](evidence/railway-migration.md#2-current-data-comparison).
 
 ### Verified website update (5) — verified
 

@@ -21,22 +21,30 @@ Screenshots (October 25, 2026, 3:47 PM). The canvas shows both services Online, 
 
 ## 2. Current data comparison
 
-Source counts (Azure SQLite backup, from the [migration runbook](../railway-migration-runbook.md)) against Railway PostgreSQL:
+Source counts (Azure SQLite backup, from the [migration runbook](../railway-migration-runbook.md)) against Railway PostgreSQL, counted in the Railway Database tab on October 25, 2026. All eight tables match, and `alembic_version` holds `0001_initial_schema`:
 
 | Table | Azure source | Railway | Match |
 |---|---:|---:|---|
-| person | 1 | TODO | TODO |
-| education | 1 | TODO | TODO |
-| experience | 1 | TODO | TODO |
-| project | 3 | TODO | TODO |
-| skill | 4 | TODO | TODO |
-| certification | 3 | TODO | TODO |
-| volunteer_experience | 3 | TODO | TODO |
-| link | 4 | TODO | TODO |
+| person | 1 | 1 | Yes |
+| education | 1 | 1 | Yes |
+| experience | 1 | 1 | Yes |
+| project | 3 | 3 | Yes |
+| skill | 4 | 4 | Yes |
+| certification | 3 | 3 | Yes |
+| volunteer_experience | 3 | 3 | Yes |
+| link | 4 | 4 | Yes |
 
 **Real change made after the transfer (October 23, 2026, about 4:50 PM):** In the Railway `link` table, I replaced the LinkedIn URL, which pointed to a placeholder (`https://www.adamriddick.me/PLACEHOLDER`), with my real LinkedIn profile URL. The corrected link appears on the live site. The Azure database still has the placeholder, so the Railway database is a separate, current copy, not restored seed data.
 
-No screenshot exists of the placeholder in Railway before the change; I made the change before capturing it. **TODO** `screenshots/railway-link-after.png` (the `link` table row with the real URL).
+No screenshot exists of the placeholder in Railway before the change; I made the change before capturing it. After the change, row 4 of the `link` table holds the real LinkedIn URL:
+
+![Railway link table after the change](screenshots/railway-link-after.png)
+
+**Why this is the transferred Azure data and not the development seed.** The seed in [`seed_data.py`](../../seed_data.py) creates 1 project, 1 link, no volunteer rows, and skills named "Python" and "MySQL" with IDs 1 to 4. Railway instead holds 3 projects, 4 links, 3 volunteer rows, skills with IDs 6 to 9 (including "Inventory Management" and "Python & MySQL"), and `PLACEHOLDER` values in certification and volunteer fields that the seed never writes. The seed could not have produced these rows; they match the live Azure site before cutover, which showed the same placeholders (for example, the volunteer end dates).
+
+![Railway skill table, IDs 6 to 9](screenshots/railway-skill-table.png)
+
+![Railway certification table with PLACEHOLDER values](screenshots/railway-certification-table.png)
 
 ## 3. Before cutover
 
@@ -153,9 +161,9 @@ Result: both `http://www` and `https://www` redirect to the root with a 301.
 
 ## 9. Open items
 
-- [ ] Row counts in section 2
+- [x] Row counts in section 2 (all eight match)
 - [x] Railway canvas, tables, deploy history, and TLS error screenshots (October 25)
-- [ ] `railway-link-after.png`
+- [x] `railway-link-after.png`
 - [ ] Railway certificate retry (section 5)
 - [x] No pending "Apply change" banner in Railway on October 25
 - [ ] Remove the Postgres TCP Proxy if it is enabled

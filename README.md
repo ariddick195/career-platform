@@ -162,7 +162,7 @@ The plan was written before any change to the working Azure deployment: [design]
 
 **Data transfer:** `scripts/transfer_database.py` imports all eight tables from a SQLite snapshot into an empty, migrated PostgreSQL database in one transaction, preserving IDs and `person_id` relationships and advancing sequences. Verified Azure source counts: person 1, education 1, experience 1, project 3, skill 4, certification 3, volunteer_experience 3, link 4.
 
-**Proof it is current data, not seed data:** the Azure database had a placeholder LinkedIn URL; the development seed has the real URL. After cutover I changed the LinkedIn URL in Railway PostgreSQL and saw it on the live site. Row counts and screenshots: [railway-migration.md](docs/evidence/railway-migration.md#2-current-data-comparison) (**partly pending**).
+**Proof it is current data, not seed data:** the Azure database had a placeholder LinkedIn URL; the development seed has the real URL. After cutover I changed the LinkedIn URL in Railway PostgreSQL and saw it on the live site. All eight table counts match the Azure source, and Railway holds Azure-only details the seed never creates (skill IDs 6 to 9, `PLACEHOLDER` values): [railway-migration.md](docs/evidence/railway-migration.md#2-current-data-comparison).
 
 **Cutover (October 23, 2026):** before/after DNS and HTTP checks, the TLS failure, and the `www` redirect are in [railway-migration.md](docs/evidence/railway-migration.md). Azure stays running.
 
@@ -229,7 +229,6 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 - **Root record is Proxied, not DNS only.** Railway's certificate request hit the Let's Encrypt rate limit; visitors currently get Cloudflare's certificate. Retry plan in [railway-migration.md §5](docs/evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
 - **Azure restart evidence** (controlled reboot, service comes back) has not been recorded; the October 8 record covers service setup only.
-- **Data comparison** row counts and some Railway screenshots are still pending.
 - **Before-MX email test** was not performed: my first inbound test was sent after the MX records were published ([ex06.md](docs/evidence/ex06.md#before-mx-was-published)).
 - **`www`** is served only by the Cloudflare redirect; Railway's trial allows one custom domain.
 - **Admin writes on Railway** stay disabled until `ADMIN_ALLOWED_ORIGINS` and production credentials are set.
