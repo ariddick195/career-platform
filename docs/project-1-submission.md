@@ -8,7 +8,7 @@ This index links to evidence. Each item says whether it is **verified** (checked
 
 - **Repository:** <https://github.com/ariddick195/career-platform>
 - **Live HTTPS site:** <https://adamriddick.me>, served by Railway since October 23, 2026
-- **Final commit SHA:** `139a9f5bb5bf798f1adb7806350032ce4f640a34`
+- **Final commit SHA:** `617461a23a766ad2933c3cae9bb747dc537fd950`
 - **README:** [README.md](../README.md)
 
 ## 1. Original spec and plans
