@@ -32,13 +32,13 @@ Azure and Railway architecture, including the email and analytics paths: [README
 - Empty table returns 200 with no sample data; database failure returns **503** with the last profile and "Projects temporarily unavailable"; the next refresh recovers without a restart. Unit tests in [`tests/test_admin_security_and_home.py`](../tests/test_admin_security_and_home.py), 52 tests run October 23, 2026. Commit `ae000c0`.
 - Live behavior during an actual database outage was not demonstrated in production.
 
-### Azure deployment (20) — historical, restart pending
+### Azure deployment (20) — verified
 
 - VM build and migration with troubleshooting: [ex03.md](evidence/ex03.md), [screenshot](evidence/ex03-site.png).
 - Nginx on port 80, Uvicorn with 2 workers on `127.0.0.1:8000`, systemd service enabled, listening sockets, private and public IPs, NSG rules with SSH limited to my laptop `/32`: [operate-the-vm execution record, October 8](superpowers/plans/2026-10-01-operate-the-vm.md#execution-record--2026-10-08).
 - Ports and the encryption boundary: [how-this-site-is-secured.md](how-this-site-is-secured.md).
 - Nginx served the live domain on October 23, 2026, before cutover (`Server: nginx/1.24.0 (Ubuntu)`): [railway-migration.md §3](evidence/railway-migration.md#3-before-cutover).
-- **Pending:** controlled VM restart showing the service returns on its own.
+- Controlled restart on October 25, 2026: the VM booted at 23:06:31 UTC and systemd started `career-platform` at 23:06:41 UTC with nobody logged in; Nginx active; the app served my profile: [restart test](superpowers/plans/2026-10-01-operate-the-vm.md#restart-test--2026-10-25).
 
 ### Domain and HTTPS (15) — verified, one limitation
 

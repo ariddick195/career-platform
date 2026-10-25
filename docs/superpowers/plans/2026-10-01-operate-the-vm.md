@@ -96,3 +96,29 @@ Reload systemd and enable/start it: `sudo systemctl daemon-reload && sudo system
 - **Inbound NSG rules (owner-verified):** SSH — inbound Allow, TCP/22, source restricted to the owner's laptop `/32` (address omitted), for VM administration; the rule's configured name and priority were not provided. `Allow-HTTP-80` — inbound Allow, TCP/80, source `Any`, priority `320`, for public website traffic. There is no public inbound allow rule for TCP/8000.
 - **Redaction reminder:** Before committing or pushing this plan, remove sensitive information such as the laptop public IP and Azure subscription ID. Neither is included in this execution record.
 - **Scope:** No Azure networking rules were changed; port 443 was not opened. Sections 4 and 5 are recorded. The SSH address and Azure subscription ID are not included.
+
+## Restart test — 2026-10-25
+
+Recorded afterward, on October 25, 2026, after the Railway cutover. The VM stays running as the rollback target, so it still runs the same Nginx, systemd, and SQLite setup described above.
+
+- **Action:** In the Azure portal, I restarted `vm-career-platform` from the Overview page at about 4:06 PM PDT and did not log in.
+- **SSH attempt:** `ssh -i ~/.ssh/isba4775_azure azureuser@9.205.27.2` at about 4:03 PM returned `Connection timed out` on port 22. I did not isolate the cause: the restart (boot time below) came after this attempt, and the SSH rule allows only my laptop's earlier `/32` address. I did not open SSH wider; Run command was enough for this check.
+- **Check:** Azure portal > Operations > Run command > RunShellScript, which runs on the VM through the Azure agent without SSH:
+
+```text
+$ uptime -s
+2026-10-25 23:06:31
+$ systemctl show career-platform -p ActiveEnterTimestamp
+ActiveEnterTimestamp=Sun 2026-10-25 23:06:41 UTC
+$ systemctl is-enabled career-platform
+enabled
+$ systemctl is-active career-platform nginx
+active
+active
+$ curl -s http://127.0.0.1:8000 | grep -o "Adam Riddick" | head -1
+Adam Riddick
+```
+
+- **Result:** The VM booted at 23:06:31 UTC (4:06:31 PM PDT), and systemd started `career-platform` 10 seconds later with nobody logged in. Nginx is active, and the app served my profile from the SQLite database. What made this work: the unit is `enabled` under `multi-user.target`, `Restart=on-failure` covers crashes, Nginx is enabled, the static public IP kept DNS and the NSG rules valid, and the database lives on the VM's disk at `/var/lib/career-platform/`.
+
+![Azure Run command output after restart](../../evidence/screenshots/azure-restart-run-command.png)

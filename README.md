@@ -228,7 +228,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 ## Remaining limitations
 
 - **Root record is Proxied, not DNS only.** Railway's certificate request hit the Let's Encrypt rate limit; visitors currently get Cloudflare's certificate. Retry plan in [railway-migration.md §5](docs/evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
-- **Azure restart evidence** (controlled reboot, service comes back) has not been recorded; the October 8 record covers service setup only.
+- **SSH to the Azure VM** allows only my laptop's earlier `/32` address, so after a network change I verify the VM through Azure Run command instead of widening the rule ([restart test](docs/superpowers/plans/2026-10-01-operate-the-vm.md#restart-test--2026-10-25)).
 - **Before-MX email test** was not performed: my first inbound test was sent after the MX records were published ([ex06.md](docs/evidence/ex06.md#before-mx-was-published)).
 - **`www`** is served only by the Cloudflare redirect; Railway's trial allows one custom domain.
 - **Admin writes on Railway** stay disabled until `ADMIN_ALLOWED_ORIGINS` and production credentials are set.
@@ -253,4 +253,4 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 The biggest thing I understand now is that a site "working" and a site working the way I think are different. My GA4 tag sent every event and Tag Assistant showed them, but two swapped characters in the Measurement ID meant Google never recorded any of them until I compared the ID on the page with the one in GA4. The Railway cutover taught me the same lesson about DNS: "Proxied" and "DNS only" both returned my page, but only DNS only lets Railway issue its own certificate, and my repeated attempts ran into the Let's Encrypt rate limit. I also see why the 503 change matters: a blank page with HTTP 200 hides a database failure, while a 503 with a clear message tells both visitors and monitoring tools what is wrong.
 
-If I did it again, I would save before-and-after output for every change while I make it, instead of rebuilding evidence afterward. I would copy IDs and DNS values with copy buttons and check them against the source, and I would set DNS records by hand instead of using one-click setups that change settings I cannot see. I would also run the Azure restart test while the VM was my live site, since that evidence is now the hardest to recreate.
+If I did it again, I would save before-and-after output for every change while I make it, instead of rebuilding evidence afterward. I would copy IDs and DNS values with copy buttons and check them against the source, and I would set DNS records by hand instead of using one-click setups that change settings I cannot see. I would also have run the Azure restart test while the VM was still my live site, instead of after the cutover.
