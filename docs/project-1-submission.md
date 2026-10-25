@@ -59,6 +59,7 @@ Azure and Railway architecture, including the email and analytics paths: [README
 
 - Commit `ae000c0`, reviewed and tested locally, deployed by Railway from GitHub ("Deployment successful"), serving the live domain: [railway-migration.md §7](evidence/railway-migration.md#7-verified-website-update).
 - Second example: commit `0c5c65f` (GA4 ID fix), deployed and verified in GA4 Realtime.
+- Third example: the placeholder-label change, deployed by Railway and checked on the live site: [railway-migration.md §7](evidence/railway-migration.md#7-verified-website-update).
 - Recovery for code and data: [README > Rollback](../README.md#rollback).
 
 ### Zoho email (15) — verified; before-MX test not performed

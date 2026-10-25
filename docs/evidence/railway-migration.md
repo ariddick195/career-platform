@@ -165,6 +165,12 @@ Result: both `http://www` and `https://www` redirect to the root with a 301.
 ![ae000c0 in Railway deployment history](screenshots/railway-deploy-ae000c0.png)
 - **Live result:** After cutover, `https://adamriddick.me` returns 200 from Railway (section 4). The new behavior (HTTP 503 and "Projects temporarily unavailable" when the database is down) is covered by unit tests; I did not take the production database down to show it live.
 
+**Second verified update (October 25, 2026).** Commit "Label placeholders; add Azure vs Railway row comparison" changed the homepage to show "end date to be added" and "Details to be added." instead of the raw `PLACEHOLDER` value, with a new unit test (53 tests passed). Railway deployed it from GitHub ("Deployment successful"), and the live site showed the new labels after a hard refresh.
+
+![Railway deployment of the placeholder change](screenshots/railway-deploy-placeholders.png)
+
+![Live site showing the placeholder labels](screenshots/live-placeholder-labels.png)
+
 ## 8. Rollback
 
 **Code.** In Railway, Deployments: open the previous successful deployment's menu and choose Redeploy. Or run `git revert <commit>` and push, which Railway deploys automatically.
