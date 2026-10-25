@@ -8,7 +8,7 @@ This index links to evidence. Each item says whether it is **verified** (checked
 
 - **Repository:** <https://github.com/ariddick195/career-platform>
 - **Live HTTPS site:** <https://adamriddick.me>, served by Railway since October 23, 2026
-- **Final commit SHA:** `c26e7cb4b266b87a282cadec93a430db9bb51fc9`
+- **Final commit SHA:** `FILL IN AFTER THE LAST COMMIT` (run `git rev-parse HEAD`)
 - **README:** [README.md](../README.md)
 
 ## 1. Original spec and plans
@@ -61,12 +61,12 @@ Azure and Railway architecture, including the email and analytics paths: [README
 - Second example: commit `0c5c65f` (GA4 ID fix), deployed and verified in GA4 Realtime.
 - Recovery for code and data: [README > Rollback](../README.md#rollback).
 
-### Zoho email (15) — verified, before-MX pending
+### Zoho email (15) — verified; before-MX test not performed
 
 - Received, replied, and new outgoing message table; SPF, DKIM, DMARC all PASS: [ex06.md](evidence/ex06.md).
 - Screenshots: [Test 04 authentication](evidence/screenshots/Original%20Script.png), [Test 04 in Gmail](evidence/screenshots/Excercise%206%20evidence.png), [MX records](evidence/screenshots/MX%20record.png), [Reply 1](evidence/screenshots/Reply%201.png), [Reply 2](evidence/screenshots/Reply%202.png).
-- Managed vs self-hosted email decision: [README](../README.md#decision-2-managed-email-zoho-instead-of-my-own-mail-server).
-- **Pending:** the before-MX test line in [ex06.md](evidence/ex06.md#before-mx-was-published).
+- Managed vs self-hosted email decision: [README](../README.md#decision-2-managed-email-with-zoho-instead-of-my-own-mail-server).
+- **Not performed:** the before-MX test; the first inbound test came after MX was published. Recorded honestly in [ex06.md](evidence/ex06.md#before-mx-was-published).
 
 ### Google Analytics 4 (10) — verified
 

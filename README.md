@@ -189,29 +189,29 @@ PaaS is not maintenance-free: Railway took the OS, runtime host, edge, and certi
 
 ## Decisions
 
-> Drafted October 25, 2026, from the class discussions. **Adam: rewrite these in your own words before submitting.**
+> Written afterward, on October 25, 2026, from the decisions argued in class on October 8 (Railway) and October 13 (email).
 
 ### Decision 1: Move from the Azure VM to Railway
 
-*Scenario:* CTO of a three-developer startup running on an Azure VM; Railway offers to take over the infrastructure.
+**Scenario:** I am the CTO of a three-developer startup running on one Azure VM, and Railway offers to take over the infrastructure.
 
-- **Alternatives:** stay on the Azure VM; move to Railway; another PaaS.
-- **Recommendation:** move to Railway for the current stage.
-- **Why:** On Azure, every deploy was SSH, pull, sync, restart, and HTTPS took five manual pieces. On Railway a push to `main` deploys, and the platform handles the OS, edge, and certificates. For three developers, hours saved on server upkeep are worth more than the platform's price at this traffic.
-- **Costs and risks:** less control (no Nginx tuning, no shell on the host); Railway's trial ends in 30 days or $5, and the Free plan has no custom domain, so it becomes a paid service; PostgreSQL backups are still our job.
-- **What would change my answer:** high, steady traffic where a VM is cheaper; strict compliance needing control of the host; or Railway outages affecting customers.
+- **Alternatives:** stay on the Azure VM, move to Railway, or move to another platform such as AWS.
+- **My recommendation:** move to Railway for now.
+- **Why:** On Azure, every update meant SSH, `git pull`, sync, and a service restart, and HTTPS alone took five separate pieces (a port 443 rule, Nginx `server_name`, Certbot, the domain challenge, and a renewal timer). On Railway, a push to `main` deployed commit `ae000c0` with no server login. For three developers, the hours we stop spending on the server are worth more than what the platform costs at our traffic.
+- **What we give up:** control of the host (no Nginx tuning, no shell on the machine), and a bill: the trial ends after 30 days or $5, and the Free plan does not allow a custom domain. Backups of PostgreSQL are still our job, because Railway calls the database unmanaged.
+- **What would change my answer:** steady high traffic where a VM is cheaper, compliance rules that require control of the host, or Railway outages that hurt customers. My own cutover also showed a risk: the one-click DNS setup changed a setting I did not choose (it proxied the record).
 
-### Decision 2: Managed email (Zoho) instead of my own mail server
+### Decision 2: Managed email with Zoho instead of my own mail server
 
-- **Alternatives:** run Postfix/Dovecot on the VM; use Zoho Mail free plan; Google Workspace.
-- **Choice:** Zoho Mail.
-- **Why:** Zoho runs the mail servers, spam filtering, storage, and sender reputation. A new self-hosted server's IP would likely be distrusted, and port 25 is often blocked on cloud VMs. Setup was a few DNS records.
-- **What I still own:** the MX, SPF, DKIM, and DMARC records and the evidence they work. One wrong record means lost or spam-foldered mail.
-- **What would change my answer:** needing IMAP clients (free plan has none) or more mailboxes would mean a paid plan; self-hosting only makes sense with dedicated email expertise.
+- **Alternatives:** run my own mail server on the VM, use Zoho Mail's free plan, or pay for Google Workspace.
+- **My choice:** Zoho Mail.
+- **Why:** Zoho runs the mail servers, spam filtering, storage, and sender reputation. A new server I ran myself would start with an IP address other providers do not trust, and cloud VMs often block port 25. With Zoho, setup was a few DNS records, and Test 04 passed SPF, DKIM, and DMARC in Gmail.
+- **What I still own:** the MX, SPF, DKIM, and DMARC records, and the proof they work. One wrong record means mail that bounces or lands in spam.
+- **What would change my answer:** needing Outlook or Apple Mail (the free plan has no IMAP) or more than five mailboxes would mean a paid plan. Running my own server only makes sense with someone whose job is email.
 
 ### Decision 3: SQLite on Azure, PostgreSQL on Railway
 
-SQLite fit a single VM: one file, no server, and the app and database on the same disk. On Railway each push replaces the app container, so a database file inside it would be lost on the next deploy; a separate PostgreSQL service keeps the data independent of deploys and is what the course requires. SQLite stays for local development.
+SQLite fit one VM: a single file on the same disk as the app, with no database server to run. On Railway, each push replaces the app container, so a database file inside it would be lost on the next deploy. A separate PostgreSQL service keeps the data safe across deploys. I kept SQLite for local development because it needs no setup.
 
 ## Investigated failures
 
@@ -230,7 +230,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 - **Root record is Proxied, not DNS only.** Railway's certificate request hit the Let's Encrypt rate limit; visitors currently get Cloudflare's certificate. Retry plan in [railway-migration.md §5](docs/evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
 - **Azure restart evidence** (controlled reboot, service comes back) has not been recorded; the October 8 record covers service setup only.
 - **Data comparison** row counts and some Railway screenshots are still pending.
-- **Before-MX email test** is not yet recorded in [ex06.md](docs/evidence/ex06.md).
+- **Before-MX email test** was not performed: my first inbound test was sent after the MX records were published ([ex06.md](docs/evidence/ex06.md#before-mx-was-published)).
 - **`www`** is served only by the Cloudflare redirect; Railway's trial allows one custom domain.
 - **Admin writes on Railway** stay disabled until `ADMIN_ALLOWED_ORIGINS` and production credentials are set.
 - **Trial clock:** Railway has 20 days or $4.67 left as of October 23, 2026.
@@ -242,7 +242,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 | Railway | Web service + PostgreSQL | Trial ($5 credit) | About **November 12, 2026** (20 days or $4.67 left on Oct 23) | Migrate to AWS after the midterm, before the trial ends |
 | Azure VM `vm-career-platform` | Compute (Standard_B2ts_v2, Denmark East) | Student credits | While credits last | After the instructor says so: Stop (deallocate) to stop compute charges |
 | Azure disk + static public IP | Retained storage and IP | Charge even when the VM is stopped | Same | Delete with the resource group `rg-career-platform` when told |
-| Domain `adamriddick.me` | Namecheap registration | Paid yearly (**Adam: add price**) | **Adam: add renewal date** | Keep; it is my email address too |
+| Domain `adamriddick.me` | Namecheap registration | Paid yearly; price to confirm in Namecheap Domain List | Renewal date to confirm in Namecheap Domain List | Keep; it is my email address too |
 | Cloudflare | DNS, redirect rule | Free | n/a | Keep |
 | Zoho Mail | `adamriddick@adamriddick.me` | Forever Free (1 domain, 5 users, 5 GB, no IMAP) | n/a | Keep |
 | Google Analytics 4 | Analytics | Free | n/a | Keep |
@@ -250,4 +250,8 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 ## Reflection
 
-> **Adam: write this yourself (3 to 5 sentences).** Prompts: What do you understand now that you did not in September (for example, why DNS-only vs proxied matters, or why a 503 is better than a blank 200)? What would you do differently (for example, double-check IDs copied from dashboards, take before/after evidence as you go, avoid one-click setups that hide what changes)?
+> Written October 25, 2026.
+
+The biggest thing I understand now is that a site "working" and a site working the way I think are different. My GA4 tag sent every event and Tag Assistant showed them, but two swapped characters in the Measurement ID meant Google never recorded any of them until I compared the ID on the page with the one in GA4. The Railway cutover taught me the same lesson about DNS: "Proxied" and "DNS only" both returned my page, but only DNS only lets Railway issue its own certificate, and my repeated attempts ran into the Let's Encrypt rate limit. I also see why the 503 change matters: a blank page with HTTP 200 hides a database failure, while a 503 with a clear message tells both visitors and monitoring tools what is wrong.
+
+If I did it again, I would save before-and-after output for every change while I make it, instead of rebuilding evidence afterward. I would copy IDs and DNS values with copy buttons and check them against the source, and I would set DNS records by hand instead of using one-click setups that change settings I cannot see. I would also run the Azure restart test while the VM was my live site, since that evidence is now the hardest to recreate.
