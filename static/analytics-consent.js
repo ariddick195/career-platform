@@ -1,5 +1,5 @@
 (() => {
-  const measurementId = 'G-D1DVSB3CWV';
+  const measurementId = 'G-D1DVSBC3WV';
   const preferenceKey = 'career-platform-analytics-consent';
   const sessionRejectionKey = 'career-platform-analytics-rejected-this-session';
   const banner = document.getElementById('analytics-consent');

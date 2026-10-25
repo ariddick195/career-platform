@@ -109,9 +109,9 @@ test('first visit waits for a choice, then loads exactly one configured GA tag o
   page.click('analytics-accept');
   assert.equal(page.storage.get('career-platform-analytics-consent'), 'accepted');
   assert.equal(page.scripts.length, 1);
-  assert.equal(page.scripts[0].src, 'https://www.googletagmanager.com/gtag/js?id=G-D1DVSB3CWV');
+  assert.equal(page.scripts[0].src, 'https://www.googletagmanager.com/gtag/js?id=G-D1DVSBC3WV');
   assert.equal(page.window.dataLayer.filter(args => Array.from(args)[0] === 'config').length, 1);
-  assert.deepEqual(Array.from(page.window.dataLayer.find(args => Array.from(args)[0] === 'config')), ['config', 'G-D1DVSB3CWV']);
+  assert.deepEqual(Array.from(page.window.dataLayer.find(args => Array.from(args)[0] === 'config')), ['config', 'G-D1DVSBC3WV']);
 });
 
 test('rejecting analytics on a first visit never loads the Google Analytics script', () => {
