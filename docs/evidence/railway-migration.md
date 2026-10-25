@@ -9,11 +9,15 @@ Observed in the Railway dashboard at about 4:45 PM:
 - Project `secure-analysis`, environment `staging`.
 - Web service `mindful-creativity`, connected to `ariddick195/career-platform` on GitHub, branch `main`. Generated domain `mindful-creativity-staging.up.railway.app`, port 8080, Python 3.13.
 - PostgreSQL service `Postgres-UR2d`, status Online, with volume `postgres-volume--mx6`.
-- Trial: **20 days or $4.67 left** as of October 23, 2026 (about November 12, 2026).
+- Trial: **20 days or $4.67 left** as of October 23, 2026 (about November 12, 2026); **18 days or $4.54 left** on October 25, 2026, 3:47 PM.
 - Postgres Database tab lists the Alembic schema tables: `alembic_version`, `person`, `education`, `experience`, `project`, `skill`, `certification`, `volunteer_experience`, `link`.
 - The Railway-generated URL showed my full profile and projects.
 
-Screenshots: **TODO** `screenshots/railway-canvas.png`, `screenshots/railway-postgres-tables.png`
+Screenshots (October 25, 2026, 3:47 PM). The canvas shows both services Online, the custom domain on the web service, and the latest commit deployed from GitHub:
+
+![Railway canvas and deployments](screenshots/railway-canvas.png)
+
+![Railway PostgreSQL tables](screenshots/railway-postgres-tables.png)
 
 ## 2. Current data comparison
 
@@ -32,7 +36,7 @@ Source counts (Azure SQLite backup, from the [migration runbook](../railway-migr
 
 **Real change made after the transfer (October 23, 2026, about 4:50 PM):** In the Railway `link` table, I replaced the LinkedIn URL, which pointed to a placeholder (`https://www.adamriddick.me/PLACEHOLDER`), with my real LinkedIn profile URL. The corrected link appears on the live site. The Azure database still has the placeholder, so the Railway database is a separate, current copy, not restored seed data.
 
-Screenshots: **TODO** `screenshots/railway-link-before.png`, `screenshots/railway-link-after.png`
+No screenshot exists of the placeholder in Railway before the change; I made the change before capturing it. **TODO** `screenshots/railway-link-after.png` (the `link` table row with the real URL).
 
 ## 3. Before cutover
 
@@ -101,7 +105,9 @@ x-railway-request-id: d_0kbspISbijg7fjCx5-qw
 
 **Next check.** After the rate limit window passes: switch the CNAME to DNS only, remove and re-add `adamriddick.me` in Railway (without one-click setup), wait for the certificate, and repeat `curl.exe -sSi https://adamriddick.me` and the `openssl` certificate check. **TODO: record the result here.**
 
-Screenshots: **TODO** `screenshots/railway-proxy-detected.png`, `screenshots/railway-tls-rate-limit.png`
+The "Cloudflare proxy detected" status (5:19 PM) was observed but not captured. The rate-limit error was still shown on October 25, 2026, 3:47 PM:
+
+![Railway TLS rate limit](screenshots/railway-tls-rate-limit.png)
 
 ## 6. www redirect
 
@@ -124,8 +130,10 @@ Result: both `http://www` and `https://www` redirect to the root with a 301.
 ## 7. Verified website update
 
 - **Commit:** `ae000c0`, "Return 503 with last profile when database is down; fix submission encoding; add Zoho evidence".
-- **Review:** I reviewed the diff locally before committing. Unit tests: 52 run, all passed except one macOS-only path test on a Mac; on Windows: **TODO**.
-- **Deployment:** Railway's Deployments tab showed this commit as **ACTIVE, "Deployment successful", via GitHub** at about 4:45 PM. Screenshot: **TODO** `screenshots/railway-deploy-ae000c0.png`
+- **Review:** I reviewed the diff locally before committing. Unit tests on October 23: 52 run; all passed except one macOS-only temp-path test when run on a Mac. Re-checked on October 25 against the current `main`: 52 Python tests passed (1 skipped) and 6 JavaScript consent tests passed.
+- **Deployment:** Railway's Deployments tab showed this commit as **ACTIVE, "Deployment successful", via GitHub** at about 4:45 PM on October 23. On October 25 the history lists it as **REMOVED**, Railway's label for a deployment replaced by a newer one (each later push redeployed, most recently `Add decisions, reflection, before-MX note`, shown ACTIVE in the canvas screenshot above).
+
+![ae000c0 in Railway deployment history](screenshots/railway-deploy-ae000c0.png)
 - **Live result:** After cutover, `https://adamriddick.me` returns 200 from Railway (section 4). The new behavior (HTTP 503 and "Projects temporarily unavailable" when the database is down) is covered by unit tests; I did not take the production database down to show it live.
 
 ## 8. Rollback
@@ -146,7 +154,8 @@ Result: both `http://www` and `https://www` redirect to the root with a 301.
 ## 9. Open items
 
 - [ ] Row counts in section 2
-- [ ] Screenshots listed above
+- [x] Railway canvas, tables, deploy history, and TLS error screenshots (October 25)
+- [ ] `railway-link-after.png`
 - [ ] Railway certificate retry (section 5)
-- [ ] Review the pending "Apply 1 change" in Railway before applying it
+- [x] No pending "Apply change" banner in Railway on October 25
 - [ ] Remove the Postgres TCP Proxy if it is enabled
