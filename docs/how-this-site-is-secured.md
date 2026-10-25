@@ -79,3 +79,42 @@ After certificate deployment, `sudo nginx -t` reported:
 syntax is ok
 test is successful
 ```
+
+## After the move to Railway (October 23, 2026)
+
+*Written October 25, 2026, from my notes with help from an AI assistant. The Azure setup above is kept as history.*
+
+**1. DNS finds the site.** DNS is like a phone book. When someone types `adamriddick.me`, Cloudflare (my DNS host) answers with where to connect, then steps aside. My record points to Railway and is **Proxied**, so visitors get Cloudflare's address and my server stays hidden.
+
+**2. The browser checks the certificate.** The browser connects to Cloudflare on port 443 and gets a certificate for `adamriddick.me`. It checks that a trusted authority signed it, that the name matches, and that it has not expired. Then both sides create secret keys, and **everything after that is encrypted**.
+
+| Issued to | Issued by | Valid from | Expires |
+|---|---|---|---|
+| `adamriddick.me` | Let's Encrypt (YE2) | Oct 8, 2026, 1:41:50 PM PDT | Jan 6, 2027, 12:41:49 PM PST |
+
+Checked in Microsoft Edge on October 25, 2026, with the record Proxied, so this is the certificate Cloudflare presents to visitors. Cloudflare manages and renews it automatically, so I no longer run Certbot.
+
+**3. Where it is encrypted.**
+
+| Step | Protected by |
+|---|---|
+| Browser to Cloudflare | TLS encryption |
+| Cloudflare to Railway | HTTPS encryption |
+| Railway to my app and database | Railway's private network (not reachable from the internet) |
+
+Someone on the same Wi-Fi can see the site name, but not the pages or anything typed. The database password is a Railway variable, never in my code.
+
+**4. No plain HTTP.** `http://` and `www` addresses redirect (301) to `https://adamriddick.me/`.
+
+**5. How you can check it.** In Chrome or Edge, click the icon left of the address, then **Connection is secure**, then **Certificate is valid** (Edge: **Certificate details**).
+
+**6. Why it is Proxied for now.** The course setup is DNS only, so Railway issues its own certificate. When I tried that on October 23, Railway hit a Let's Encrypt rate limit, so I switched back to Proxied to keep the site secure. On October 25 the record was found DNS only again and the site failed the same way, so I set it back to Proxied ([details](evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only)). I will retry DNS only after the limit clears.
+
+```text
+> curl.exe -si https://adamriddick.me      (October 25, 2026, 4:49 PM)
+HTTP/1.1 200 OK
+Server: cloudflare
+x-railway-request-id: PQglUYIwTreMO0cYg4a9AQ
+x-railway-edge: lax1
+```
+

@@ -42,9 +42,11 @@ Azure and Railway architecture, including the email and analytics paths: [README
 
 ### Domain and HTTPS (15) — verified, one limitation
 
+- DNS records, the purpose of each, and how they were verified: [README > DNS records](../README.md#dns-records-and-email-authentication).
 - Azure HTTPS: Let's Encrypt certificate for both names, HTTP-to-HTTPS 301, `openssl` output, renewal dry run: [how-this-site-is-secured.md](how-this-site-is-secured.md).
 - Railway cutover DNS and HTTPS checks, before and after: [railway-migration.md §3–4](evidence/railway-migration.md#3-before-cutover).
 - `http://www` and `https://www` both return 301 to `https://adamriddick.me/`: [railway-migration.md §6](evidence/railway-migration.md#6-www-redirect).
+- Railway-era HTTPS: who issued the certificate, the name it covers, its dates, renewal, and where encryption starts and ends: [how-this-site-is-secured.md > After the move to Railway](how-this-site-is-secured.md#after-the-move-to-railway-october-23-2026).
 - **Limitation:** the root record is Proxied while Railway's certificate is blocked by a Let's Encrypt rate limit: [railway-migration.md §5](evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
 
 ### Railway / PostgreSQL migration (25) — verified
@@ -65,7 +67,9 @@ Azure and Railway architecture, including the email and analytics paths: [README
 ### Zoho email (15) — verified; before-MX test not performed
 
 - Received, replied, and new outgoing message table; SPF, DKIM, DMARC all PASS: [ex06.md](evidence/ex06.md).
+- Header analysis of Test 04 (SPF, DKIM, DMARC and domain alignment): [zoho-header-check.md](evidence/zoho-header-check.md).
 - Screenshots: [Test 04 authentication](evidence/screenshots/Original%20Script.png), [Test 04 in Gmail](evidence/screenshots/Excercise%206%20evidence.png), [MX records](evidence/screenshots/MX%20record.png), [Reply 1](evidence/screenshots/Reply%201.png), [Reply 2](evidence/screenshots/Reply%202.png).
+- MX, SPF, DKIM, and DMARC explained, with the record values: [README > DNS records and email authentication](../README.md#dns-records-and-email-authentication).
 - Managed vs self-hosted email decision: [README](../README.md#decision-2-managed-email-with-zoho-instead-of-my-own-mail-server).
 - **Not performed:** the before-MX test; the first inbound test came after MX was published. Recorded honestly in [ex06.md](evidence/ex06.md#before-mx-was-published).
 

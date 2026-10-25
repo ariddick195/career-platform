@@ -18,13 +18,14 @@ A database-driven personal resume and career website. Profile, education, experi
 3. [How it runs on Railway and how to update it](#how-it-runs-on-railway-and-how-to-update-it)
 4. [Rollback](#rollback)
 5. [Architecture diagrams](#architecture-diagrams)
-6. [Migration: how current data was preserved](#migration-how-current-data-was-preserved)
-7. [Who manages what: Azure vs Railway](#who-manages-what-azure-vs-railway)
-8. [Decisions](#decisions)
-9. [Investigated failures](#investigated-failures)
-10. [Remaining limitations](#remaining-limitations)
-11. [Costs, expiration dates, and cleanup](#costs-expiration-dates-and-cleanup)
-12. [Reflection](#reflection)
+6. [DNS records and email authentication](#dns-records-and-email-authentication)
+7. [Migration: how current data was preserved](#migration-how-current-data-was-preserved)
+8. [Who manages what: Azure vs Railway](#who-manages-what-azure-vs-railway)
+9. [Decisions](#decisions)
+10. [Investigated failures](#investigated-failures)
+11. [Remaining limitations](#remaining-limitations)
+12. [Costs, expiration dates, and cleanup](#costs-expiration-dates-and-cleanup)
+13. [Reflection](#reflection)
 
 ## What the site does
 
@@ -151,6 +152,25 @@ Inbound:  sender's mail server --DNS MX lookup--> mx.zoho.com --SMTP 25--> Zoho 
 Outbound: Zoho webmail --> Zoho SMTP --SMTP--> recipient server (e.g. Gmail)
           recipient checks SPF (TXT @), DKIM (TXT zoho._domainkey), DMARC (TXT _dmarc) in Cloudflare DNS
 ```
+
+## DNS records and email authentication
+
+Cloudflare is the authoritative DNS host; Namecheap is only the registrar. These are the records for `adamriddick.me` after the October 23 cutover (10 records in Cloudflare):
+
+| Name | Type | Value (shortened) | Proxy | Purpose |
+|---|---|---|---|---|
+| `adamriddick.me` | CNAME | `kvovk0pv.up.railway.app` | Proxied (see limitations) | Website: sends visitors to Railway. Replaced the Azure A record `9.205.27.2` |
+| `_railway-verify` | TXT | `railway-verify=f2a64…` | DNS only | Proves to Railway that I own the domain |
+| `www` | CNAME | `adamriddick.me` | Proxied | Lets Cloudflare answer `www` and apply the 301 redirect rule to the root |
+| `adamriddick.me` | MX | `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50) | DNS only | Tells other mail servers to deliver my mail to Zoho; lowest number first |
+| `adamriddick.me` | TXT | `v=spf1 include:zohomail.com …` | DNS only | **SPF:** Zoho's servers are allowed to send mail as my domain |
+| `zoho._domainkey` | TXT | `v=DKIM1; k=rsa; p=…` | DNS only | **DKIM:** public key that checks Zoho's signature on my outgoing mail |
+| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:…` | DNS only | **DMARC:** tells receivers to check that SPF or DKIM passed for the domain in From; `p=none` = monitor only, with daily reports |
+| `adamriddick.me` | TXT | `zoho-verification=…` | DNS only | Proves to Zoho that I own the domain |
+
+**How the email checks work together.** When Gmail receives my mail, it looks up my SPF record to see whether the sending server is allowed, verifies the DKIM signature with the public key in DNS, and then applies DMARC: at least one of SPF or DKIM must pass *for the same domain shown in From*. Test 04 passed all three for `adamriddick.me` ([ex06.md](docs/evidence/ex06.md#spf-dkim-and-dmarc), [header analysis](docs/evidence/zoho-header-check.md)). Zoho's green checks only show the records exist; the receiving mailbox's result shows a real message passed. If MX were wrong, inbound mail would bounce or go missing; if SPF or DKIM were wrong, my mail would fail DMARC and land in spam.
+
+**Verification of the website records:** before and after cutover with `nslookup` against 1.1.1.1, and `curl` for HTTP status and headers ([railway-migration.md §3–6](docs/evidence/railway-migration.md#3-before-cutover)).
 
 ## Migration: how current data was preserved
 

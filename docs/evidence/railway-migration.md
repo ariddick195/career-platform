@@ -1,6 +1,6 @@
 # Railway Migration Evidence
 
-All times are Pacific (PDT) on Friday, October 23, 2026, unless noted. Command output is copied from the PowerShell session on my laptop. Items marked **TODO** still need a screenshot or a check.
+All times are Pacific (PDT) on Friday, October 23, 2026, unless noted. Command output is copied from the PowerShell session on my laptop. Later checks are dated where they were made.
 
 ## 1. Railway setup observed
 
@@ -132,7 +132,32 @@ x-railway-request-id: d_0kbspISbijg7fjCx5-qw
 
 **Remaining limitation.** The root record is Proxied, not DNS only as the course requires. Visitors see Cloudflare's certificate, not a Railway-issued one.
 
-**Next check.** After the rate limit window passes: switch the CNAME to DNS only, remove and re-add `adamriddick.me` in Railway (without one-click setup), wait for the certificate, and repeat `curl.exe -sSi https://adamriddick.me` and the `openssl` certificate check. **TODO: record the result here.**
+**Recurrence (October 25, 2026).** At 4:44 PM the site failed again for all visitors. The root CNAME had been set back to DNS only, and Railway still had no certificate for the domain:
+
+```text
+> curl.exe -sSI https://adamriddick.me
+curl: (60) schannel: SNI or certificate check failed: SEC_E_WRONG_PRINCIPAL (0x80090322) - The target principal name is incorrect.
+
+> nslookup adamriddick.me 1.1.1.1
+Address:  69.46.46.83
+```
+
+The single Railway address (instead of Cloudflare's `104.21.x` / `172.67.x`) showed the record was DNS only. Railway still showed the rate-limit error. At about 4:47 PM I set the CNAME back to Proxied and repeated the check:
+
+```text
+> nslookup adamriddick.me 1.1.1.1      (4:49 PM)
+Addresses:  2606:4700:3037::6815:5602, 2606:4700:3033::ac43:d54e, 172.67.213.78, 104.21.86.2
+
+> curl.exe -si https://adamriddick.me
+HTTP/1.1 200 OK
+Server: cloudflare
+x-railway-request-id: PQglUYIwTreMO0cYg4a9AQ
+x-railway-edge: lax1
+```
+
+Edge then showed a valid certificate for `adamriddick.me` issued by Let's Encrypt (YE2), expiring January 6, 2027. Lesson: while Railway has no certificate, the record must stay Proxied; switching it to DNS only takes the site down.
+
+**Next check.** After the rate limit window passes: switch the CNAME to DNS only, remove and re-add `adamriddick.me` in Railway (without one-click setup), wait for the certificate, and repeat `curl.exe -sSi https://adamriddick.me` and the `openssl` certificate check. Record the result here when done.
 
 The "Cloudflare proxy detected" status (5:19 PM) was observed but not captured. The rate-limit error was still shown on October 25, 2026, 3:47 PM:
 
