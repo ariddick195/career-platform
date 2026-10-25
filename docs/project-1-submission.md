@@ -1,74 +1,83 @@
 # Project 1: Own Your Corner of the Internet
 
-**Course:** LMU ISBA 4775
-**Due:** October 22, 2026, 1:45 PM Pacific
-**Rubric total:** 125 points
+**Course:** LMU ISBA 4775 · **Rubric total:** 125 points · **Index updated:** October 25, 2026
 
-> This index separates repository evidence from historical observations and outstanding evidence. A plan, test, or screenshot is not proof of current production behavior unless stated. No migration or test execution is claimed here.
+This index links to evidence. Each item says whether it is **verified** (checked, with dated output or screenshots), **historical** (true when recorded, not re-checked), or **pending**.
 
-## Final submission details
+## Submission details
 
-- **Repository URL:** https://github.com/ariddick195/career-platform
-- **Live HTTPS URL:** https://adamriddick.me - HTTPS returned successfully during read-only checks, but the current hosting platform and Railway cutover have not been verified.
-- **Current local and GitHub commit SHA:** `d16e2599c07c1755ed60d36a9d925311485e6c3c` - the local `main` branch was reported up to date with `origin/main`; the deployed revision has not been verified.
+- **Repository:** <https://github.com/ariddick195/career-platform>
+- **Live HTTPS site:** <https://adamriddick.me>, served by Railway since October 23, 2026
+- **Final commit SHA:** `FILL IN AFTER THE LAST COMMIT` (run `git rev-parse HEAD`)
+- **README:** [README.md](../README.md)
 
-## Rubric evidence index
+## 1. Original spec and plans
 
-### 1. Personal application - 15 points - **PARTIAL**
+- Application design: [2026-09-15 specification](superpowers/specs/2026-09-15-personal-resume-career-platform-design.md)
+- Application plan: [2026-09-22 plan](superpowers/plans/2026-09-22-personal-resume-career-platform-plan.md)
+- Azure migration plan: [2026-09-24](superpowers/plans/2026-09-24-azure-vm-migration.md)
+- Operate the VM plan and execution record: [2026-10-01](superpowers/plans/2026-10-01-operate-the-vm.md)
+- Profile security and homepage plan: [2026-10-12](superpowers/plans/2026-10-12-secure-profile-and-strengthen-homepage.md)
+- Railway design and plan (written before cutover): [design](superpowers/specs/2026-10-13-railway-postgresql-migration-design.md), [plan](superpowers/plans/2026-10-13-railway-postgresql-migration.md), [runbook](railway-migration-runbook.md)
 
-- **VERIFIED (source present):** Application and database-backed profile/project reads are implemented in [`main.py`](../main.py) and [`db_schema.py`](../db_schema.py), consistent with the [original career-platform specification](superpowers/specs/2026-09-15-personal-resume-career-platform-design.md).
-- **VERIFIED (unit tests, run October 23, 2026):** [`tests/test_admin_security_and_home.py`](../tests/test_admin_security_and_home.py) now covers a healthy homepage (HTTP 200), an all-tables-empty database (HTTP 200, no sample projects), a database failure (HTTP 503, last real profile still shown, "Projects temporarily unavailable"), and recovery on the next refresh without a restart. Full suite: 52 tests passed, 1 skipped.
-- **GAP:** The 503 behavior has not yet been checked on the live deployment.
+## 2. Diagrams
 
-### 2. Azure - 20 points - **PARTIAL**
+Azure and Railway architecture, including the email and analytics paths: [README > Architecture diagrams](../README.md#architecture-diagrams).
 
-- **VERIFIED (historical):** Azure migration record and deployment screenshot: [`docs/evidence/ex03.md`](evidence/ex03.md) and [`ex03-site.png`](evidence/ex03-site.png). The screenshot is dated October 1, 2026 and shows the public IP over HTTP on port 8000, marked "Not secure"; it does not establish current HTTPS or current deployment state.
-- **VERIFIED (dated execution record):** Service, two-worker, socket, and network-rule observations are recorded in the October 8 execution record: [`2026-10-01-operate-the-vm.md`](superpowers/plans/2026-10-01-operate-the-vm.md). These are not a current Azure inspection.
-- HTTPS and network documentation: [`docs/how-this-site-is-secured.md`](how-this-site-is-secured.md).
-- **GAP:** No evidence of service persistence after a VM restart. Reconfirm current worker count, boot enablement, socket binding, and NSG rules before claiming the current state.
+## Rubric evidence
 
-### 3. Domain/HTTPS - 15 points - **GAP**
+### Personal application (15) — verified
 
-- **VERIFIED (read-only check, October 21, 2026):** HTTPS GET requests to `https://adamriddick.me/`, `https://www.adamriddick.me/`, and `/privacy` on both hosts returned HTTP 200; curl reported TLS verification result 0. The `www` URL remained on `www` after redirects were followed, so the required redirect to the bare domain is not present in this check.
-- **VERIFIED (historical Azure evidence only):** Domain, certificate, redirect, and renewal notes: [`docs/how-this-site-is-secured.md`](how-this-site-is-secured.md).
-- **VERIFIED (browser capture dated October 20, 2026):** The captures show `www.adamriddick.me` over HTTPS while inspecting analytics requests: [`page_view capture`](evidence/screenshots/Screenshot%202026-10-20%20190101.png) and [`outbound-click capture`](evidence/screenshots/Screenshot%202026-10-20%20190327.png). They do not establish Railway routing or current behavior.
-- **GAP:** The live HTTPS check does not identify the serving platform. No evidence establishes that the final bare domain points to Railway, that `www` redirects correctly, or that a Railway certificate renews. The existing HTTPS document describes Azure.
+- Database-backed profile and project reads: [`main.py`](../main.py), [`db_schema.py`](../db_schema.py).
+- Empty table returns 200 with no sample data; database failure returns **503** with the last profile and "Projects temporarily unavailable"; the next refresh recovers without a restart. Unit tests in [`tests/test_admin_security_and_home.py`](../tests/test_admin_security_and_home.py), 52 tests run October 23, 2026. Commit `ae000c0`.
+- Live behavior during an actual database outage was not demonstrated in production.
 
-### 4. Railway/PostgreSQL migration - 25 points - **GAP**
+### Azure deployment (20) — historical, restart pending
 
-- **VERIFIED (artifacts present):** Migration design and implementation plan: [`2026-10-13-railway-postgresql-migration-design.md`](superpowers/specs/2026-10-13-railway-postgresql-migration-design.md) and [`2026-10-13-railway-postgresql-migration.md`](superpowers/plans/2026-10-13-railway-postgresql-migration.md).
-- **VERIFIED (procedure only):** [`docs/railway-migration-runbook.md`](railway-migration-runbook.md) documents how to migrate; it does not establish that a production migration occurred.
-- **VERIFIED (source present, not executed here):** Schema, transfer tool, and transfer-test source: [`migrations/versions/0001_initial_schema.py`](../migrations/versions/0001_initial_schema.py), [`scripts/transfer_database.py`](../scripts/transfer_database.py), and [`tests/test_database_transfer.py`](../tests/test_database_transfer.py).
+- VM build and migration with troubleshooting: [ex03.md](evidence/ex03.md), [screenshot](evidence/ex03-site.png).
+- Nginx on port 80, Uvicorn with 2 workers on `127.0.0.1:8000`, systemd service enabled, listening sockets, private and public IPs, NSG rules with SSH limited to my laptop `/32`: [operate-the-vm execution record, October 8](superpowers/plans/2026-10-01-operate-the-vm.md#execution-record--2026-10-08).
+- Ports and the encryption boundary: [how-this-site-is-secured.md](how-this-site-is-secured.md).
+- Nginx served the live domain on October 23, 2026, before cutover (`Server: nginx/1.24.0 (Ubuntu)`): [railway-migration.md §3](evidence/railway-migration.md#3-before-cutover).
+- **Pending:** controlled VM restart showing the service returns on its own.
 
-**CURRENT BLOCKER:** Railway CLI authentication is working (`railway.cmd whoami` succeeds), and the registered staging SSH key is recognized. However, the SSH connection to `ssh.railway.com` on port 22 times out, so no private tunnel or target database connection has been established. The local variable name `RAILWAY_DATABASE_URL` does not match the transfer utility's expected `DATABASE_URL`; its value was not read or used, and the intended target remains unverified. Do not use it as the import target without independently identifying and verifying the target.
-### 5. Verified website update - 5 points - **GAP**
+### Domain and HTTPS (15) — verified, one limitation
 
-- **VERIFIED (repository history):** Relevant repository commits include `0e1c226` (Railway/PostgreSQL foundations), `2c4dca4` (migration runbook), `ffd6811` (privacy page and analytics consent), `3b4d886` (outbound analytics clicks), and `7d4505f` (Exercise 06 evidence/screenshots).
-- **GAP:** No reviewed commit SHA is linked to a Railway deployment and verified live behavior. Fill the final SHA above only after checking the deployed revision and live site.
+- Azure HTTPS: Let's Encrypt certificate for both names, HTTP-to-HTTPS 301, `openssl` output, renewal dry run: [how-this-site-is-secured.md](how-this-site-is-secured.md).
+- Railway cutover DNS and HTTPS checks, before and after: [railway-migration.md §3–4](evidence/railway-migration.md#3-before-cutover).
+- `http://www` and `https://www` both return 301 to `https://adamriddick.me/`: [railway-migration.md §6](evidence/railway-migration.md#6-www-redirect).
+- **Limitation:** the root record is Proxied while Railway's certificate is blocked by a Let's Encrypt rate limit: [railway-migration.md §5](evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
 
-### 6. Zoho email - 15 points - **PARTIAL**
+### Railway / PostgreSQL migration (25) — verified cutover, comparison partly pending
 
-- Recorded email observations and authentication results: [`docs/evidence/ex06.md`](evidence/ex06.md).
-- **VERIFIED (one outgoing message):** "Test 04" delivery and SPF/DKIM/DMARC pass are shown in [`Original Script.png`](evidence/screenshots/Original%20Script.png). This is evidence for that outgoing message, not a complete DNS/MX record inventory.
-- **PARTIAL (written observations only):** Incoming and reply outcomes are recorded in the evidence note, but the reply is not established as part of the recorded incoming thread and supporting captures are absent.
-- **GAP:** No before-MX test or MX-record evidence is indexed.
+- Plan and dependency inventory written before the change: see section 1.
+- PostgreSQL compatibility changes and transfer tool: commit `0e1c226`, [`scripts/transfer_database.py`](../scripts/transfer_database.py), [`tests/test_database_transfer.py`](../tests/test_database_transfer.py), [`migrations/`](../migrations/versions/0001_initial_schema.py).
+- Railway setup, real data change, cutover, rollback: [railway-migration.md](evidence/railway-migration.md).
+- Who manages what on Azure vs Railway: [README](../README.md#who-manages-what-azure-vs-railway).
+- **Pending:** table-by-table row counts and screenshots in [railway-migration.md §2](evidence/railway-migration.md#2-current-data-comparison).
 
-**Evidence screenshots:**
-- `docs/evidence/screenshots/Original Script.png` - Test 04 message details showing delivery and SPF, DKIM, and DMARC passing.
-- `docs/evidence/screenshots/Excercise 6 evidence.png` - Test 04 message visible in the Gmail inbox.
+### Verified website update (5) — verified
 
-### 7. GA4 - 10 points - **PARTIAL**
+- Commit `ae000c0`, reviewed and tested locally, deployed by Railway from GitHub ("Deployment successful"), serving the live domain: [railway-migration.md §7](evidence/railway-migration.md#7-verified-website-update).
+- Second example: commit `0c5c65f` (GA4 ID fix), deployed and verified in GA4 Realtime.
+- Recovery for code and data: [README > Rollback](../README.md#rollback).
 
-- **VERIFIED (browser Network captures dated October 20, 2026):** Page-view request: [`October 20 page_view capture`](evidence/screenshots/Screenshot%202026-10-20%20190101.png); outbound-click request and payload: [`October 20 outbound-click capture`](evidence/screenshots/Screenshot%202026-10-20%20190327.png).
-- Evidence summary and implementation: [`docs/evidence/ex06.md`](evidence/ex06.md), [`static/analytics-consent.js`](../static/analytics-consent.js), and [`tests/analytics-consent.test.js`](../tests/analytics-consent.test.js).
-- **GAP:** The screenshots show browser Network requests, not receipt in GA4 Realtime or DebugView. No property-level verification is included. Consent tests were not run for this record.
+### Zoho email (15) — verified, before-MX pending
 
-**Additional verification (October 21, 2026):** GA4 Realtime showed zero active users after visiting the website. The browser Network panel showed zero requests matching the `collect` filter during the subsequent check. The October 20 screenshots document browser-side analytics requests, but successful receipt by GA4 remains unverified.
+- Received, replied, and new outgoing message table; SPF, DKIM, DMARC all PASS: [ex06.md](evidence/ex06.md).
+- Screenshots: [Test 04 authentication](evidence/screenshots/Original%20Script.png), [Test 04 in Gmail](evidence/screenshots/Excercise%206%20evidence.png), [MX records](evidence/screenshots/MX%20record.png), [Reply 1](evidence/screenshots/Reply%201.png), [Reply 2](evidence/screenshots/Reply%202.png).
+- Managed vs self-hosted email decision: [README](../README.md#decision-2-managed-email-zoho-instead-of-my-own-mail-server).
+- **Pending:** the before-MX test line in [ex06.md](evidence/ex06.md#before-mx-was-published).
 
-### 8. Engineering Record - 20 points - PARTIAL
+### Google Analytics 4 (10) — verified
 
-- Project setup and deployment instructions: [`README.md`](../README.md).
-- **VERIFIED (documents present):** Original application specification and plans: [`2026-09-15-personal-resume-career-platform-design.md`](superpowers/specs/2026-09-15-personal-resume-career-platform-design.md), [`2026-09-22-personal-resume-career-platform-plan.md`](superpowers/plans/2026-09-22-personal-resume-career-platform-plan.md), [`2026-09-24-azure-vm-migration.md`](superpowers/plans/2026-09-24-azure-vm-migration.md), [`2026-10-01-operate-the-vm.md`](superpowers/plans/2026-10-01-operate-the-vm.md), and the Railway design/plan linked above.
-- Failure investigation: [`docs/evidence/ex05.md`](evidence/ex05.md). It explicitly records a supplied simulation, not a repair to the personal live site.
+- Investigation of the wrong Measurement ID, fix in `0c5c65f`, and Realtime verification of `page_view` and outbound `click` with `link_url`: [ex06.md > GA4](evidence/ex06.md#google-analytics-4).
+- Screenshots: [Realtime events](evidence/screenshots/ga4-realtime-events.png), [Realtime click link_url](evidence/screenshots/ga4-realtime-click-link.png), [click sent with the wrong ID](evidence/screenshots/ga4-click-details.png).
+- Consent implementation: [`static/analytics-consent.js`](../static/analytics-consent.js), [Privacy page](https://adamriddick.me/privacy).
 
-The repository URL, live HTTPS URL, and current local commit SHA are recorded above. The deployed revision and current hosting platform remain unverified.
+### Engineering record (20)
+
+- Failures: [README > Investigated failures](../README.md#investigated-failures) (application: [ex03](evidence/ex03.md); DNS/TLS: [ex05 simulation](evidence/ex05.md) and the real cutover TLS failure).
+- Decisions: [README > Decisions](../README.md#decisions).
+- Reflection: [README > Reflection](../README.md#reflection).
+- Costs, expiration dates, cleanup: [README > Costs](../README.md#costs-expiration-dates-and-cleanup).
+- Remaining limitations: [README > Remaining limitations](../README.md#remaining-limitations).
