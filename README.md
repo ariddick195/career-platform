@@ -3,24 +3,25 @@
 A database-driven personal resume and career website. Profile, education, experience, projects, skills, certifications, volunteer work, and links are stored in a database and read on every page request.
 
 - **Live site:** <https://adamriddick.me> (`www.adamriddick.me` redirects here)
-- **Hosting now:** Railway web service + Railway PostgreSQL (since October 23, 2026)
-- **Hosting before:** Azure Ubuntu VM with Nginx, Uvicorn, systemd, and SQLite (kept running as the rollback target)
+- **Hosting now:** AWS EC2 + private Amazon RDS for PostgreSQL (production cutover November 11, 2026)
+- **Previous hosting:** Railway web service + Railway PostgreSQL (October 23–November 11, 2026; retained as a rollback option while available)
+- **Earlier hosting:** Azure Ubuntu VM with Nginx, Uvicorn, systemd, and SQLite
 - **Email:** `adamriddick@adamriddick.me` on Zoho Mail
 - **Analytics:** Google Analytics 4, loaded only after the visitor accepts analytics
 - **Evidence index:** [docs/project-1-submission.md](docs/project-1-submission.md)
 
-> This README was rewritten on October 25, 2026, after the Railway cutover, to describe the system as it runs now. The Azure section is kept as history. The migration plan itself was written before the cutover: see [the Railway design](docs/superpowers/specs/2026-10-13-railway-postgresql-migration-design.md) and [plan](docs/superpowers/plans/2026-10-13-railway-postgresql-migration.md).
+> Hosting and architecture were updated on November 12, 2026, after the AWS production cutover. Azure and Railway details below are retained as history; Railway is kept as a rollback option, not the current public host.
 
 ## Contents
 
 1. [What the site does](#what-the-site-does)
 2. [Run it locally](#run-it-locally)
-3. [How it runs on Railway and how to update it](#how-it-runs-on-railway-and-how-to-update-it)
+3. [How it runs on AWS and how to update it](#how-it-runs-on-aws-and-how-to-update-it)
 4. [Rollback](#rollback)
 5. [Architecture diagrams](#architecture-diagrams)
 6. [DNS records and email authentication](#dns-records-and-email-authentication)
-7. [Migration: how current data was preserved](#migration-how-current-data-was-preserved)
-8. [Who manages what: Azure vs Railway](#who-manages-what-azure-vs-railway)
+7. [Migration: Railway to AWS](#migration-railway-to-aws)
+8. [Who manages what: AWS vs Railway](#who-manages-what-aws-vs-railway)
 9. [Decisions](#decisions)
 10. [Investigated failures](#investigated-failures)
 11. [Remaining limitations](#remaining-limitations)
@@ -58,51 +59,80 @@ Local development uses SQLite at `data/career-platform.db` with `APP_ENV=develop
 
 For local admin access, set non-empty `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`, then open <http://127.0.0.1:8000/admin>.
 
-## How it runs on Railway and how to update it
+## How it runs on AWS and how to update it
 
 | Setting | Value |
 |---|---|
-| Railway project / environment | `secure-analysis` / `staging` |
-| Web service | `mindful-creativity`, deployed from GitHub `ariddick195/career-platform`, branch `main` |
-| Database | `Postgres-UR2d` (Railway PostgreSQL) |
-| Generated URL | <https://mindful-creativity-staging.up.railway.app> |
-| Custom domain | `adamriddick.me`, port 8080 |
-| Variables | `APP_ENV=production`, `DATABASE_URL` as a Railway reference to the Postgres service, and `ADMIN_*` only when admin writes are enabled. Values live in Railway, never in Git. |
-| Start command | `uvicorn main:app --host 0.0.0.0 --port $PORT` (Railway supplies `PORT`) |
+| AWS region | `us-east-1` |
+| Application host | Existing Amazon Linux 2023 EC2 instance; app runs as `career-platform.service` |
+| Web entry point | Nginx on EC2; TLS 1.2/1.3; proxies to Uvicorn on `127.0.0.1:8000` |
+| Public DNS | Cloudflare-proxied apex A record to the EC2 Elastic IP; `www` points to the apex and redirects to HTTPS apex |
+| Database | Private Amazon RDS for PostgreSQL; reachable from the EC2 application security group only |
+| Database access | EC2 role reads the app database secret; application uses PostgreSQL TLS verification (`verify-full`). Secrets are not in Git. |
+| Application checkout | `/opt/career-platform`, GitHub `ariddick195/career-platform`, branch `main` |
+| Configuration | Protected `/etc/career-platform/production.env`; never copy it into the repository or logs |
+| Admin | Writes remain fail-closed; unauthenticated `/admin` currently returns HTTP 503 |
 
-In production the app requires a PostgreSQL `DATABASE_URL` and fails closed without one; it never falls back to SQLite.
+In production the app requires PostgreSQL and fails closed without its database configuration; it never falls back to SQLite. Production data is not seeded automatically, and application startup does not run Alembic migrations.
 
-**To publish a change:**
+**To deploy a code change to AWS:**
 
 1. Make the change locally, review `git diff`, and run `python -m unittest discover -s tests`.
-2. Commit and push to `main`. Railway builds and deploys that commit automatically.
-3. In Railway > Deployments, find the same commit message and SHA and wait for **Deployment successful**.
-4. Check the live site: `curl.exe -si https://adamriddick.me` should return `200 OK` with an `x-railway-request-id` header.
+2. Commit and push the reviewed code to `main`. AWS does not auto-deploy from GitHub; while the Railway rollback service remains connected, a push to `main` may also trigger a Railway deployment.
+3. Connect to the existing EC2 instance with AWS Systems Manager Session Manager. In `/opt/career-platform`, fast-forward to `origin/main` (`git pull --ff-only origin main`). If dependency files changed, review and synchronize the persistent `/opt/career-platform/venv` using the repository's dependency instructions before restarting `career-platform.service` with systemd.
+4. Verify the service is active, check `/`, `/privacy`, static assets, and the expected fail-closed `/admin` response on the origin, then check the public HTTPS site and certificate.
 
-**Schema changes** are Alembic migrations (`migrations/versions/`). Apply them to Railway PostgreSQL with `alembic upgrade head` before relying on the new code. Never run `scripts.seed_dev` against production.
-
-Verified example: commit `ae000c0` (the 503 database-failure behavior) was reviewed and tested locally, deployed by Railway on October 23, 2026, and serves the live domain ([evidence](docs/evidence/railway-migration.md#7-verified-website-update)). Commit `0c5c65f` (GA4 ID fix) followed the same path on October 25.
+Do not run `scripts.seed_dev` on production. Schema changes require an explicit, reviewed migration and a current backup; never add Alembic migrations to application startup.
 
 ## Rollback
 
 Rolling back code and rolling back data are different problems.
 
-**Code (a bad deploy):**
-- Fastest: Railway > Deployments > the last good deployment > **Redeploy**.
-- Permanent: `git revert <bad-commit>` and push to `main`; Railway deploys the revert.
+**Code (a bad AWS deploy):**
+- Identify the last known-good commit, then deploy that reviewed revision to EC2 through Session Manager and restart `career-platform.service`.
+- A `git revert <bad-commit>` pushed to `main` affects the GitHub branch; AWS still requires an explicit EC2 fast-forward and service restart. Railway may also deploy the revert while its service remains connected to `main`.
 
-**Database schema:** `alembic downgrade -1` reverts the last migration. Take a Railway PostgreSQL backup (Backups tab) first, because a downgrade can drop columns and their data.
+**Database schema:** do not downgrade automatically. Take and verify a current backup of the affected database first, review the migration's data-loss risk, and run any Alembic command as a deliberate operator action.
 
-**Data or platform (moving back to Azure):** Since cutover, Railway PostgreSQL has taken at least one write that Azure does not have (the LinkedIn link fix). Pointing DNS back to Azure alone would serve stale data. The procedure, detailed in the [runbook](docs/railway-migration-runbook.md#rollback):
+**Platform (rolling public traffic back to Railway):** Do not change DNS by itself. First confirm the Railway service is still active, take/verify a current backup, and compare/reconcile any data written since the final Railway-to-RDS restore. RDS and Railway PostgreSQL are separate and do not replicate automatically. Then change only the website apex record back to the currently confirmed Railway target; preserve mail and verification records. Keep AWS and RDS intact until the Railway rollback is verified.
 
-1. Stop admin writes on Railway.
-2. Back up Railway PostgreSQL.
-3. Export it to a **new** SQLite file: `python -m scripts.transfer_database --direction postgres-to-sqlite --sqlite-path <new-file>.db`, with `DATABASE_URL` set to the Railway database for that one command. Verify all eight table counts.
-4. Install that file on the Azure VM as `/var/lib/career-platform/career-platform.db`, keeping the old file, then restart `career-platform`.
-5. In Cloudflare, set the root record back to **A `adamriddick.me` -> `9.205.27.2`**, DNS only. The Azure Let's Encrypt certificate covers `adamriddick.me` and `www`.
-6. Check HTTPS and the page content on Azure before re-enabling writes.
+**Historical rollback to Azure:** The older procedure is retained in the [Railway migration runbook](docs/railway-migration-runbook.md#rollback), but it predates the AWS cutover and its DNS target/data instructions must not be used without re-verification.
+
 
 ## Architecture diagrams
+
+### AWS (production since November 11, 2026)
+
+```mermaid
+flowchart LR
+    visitor[Visitor browser]
+    dns[Cloudflare DNS<br/>@ A → EC2 Elastic IP<br/>www CNAME → apex; 301 to HTTPS apex<br/>Zoho mail records preserved]
+    cf[Cloudflare proxy]
+
+    subgraph aws[AWS us-east-1]
+      subgraph ec2[Amazon Linux 2023 EC2]
+        nginx[Nginx :80/:443<br/>HTTP redirects to HTTPS<br/>TLS certificate for apex and www]
+        app[FastAPI + Uvicorn<br/>systemd career-platform.service<br/>127.0.0.1:8000]
+        secrets[EC2 IAM role<br/>reads app DB secret]
+        nginx -->|loopback HTTP| app
+        secrets -.->|protected environment file| app
+      end
+      ssm[AWS Systems Manager<br/>Session Manager]
+      rds[(Amazon RDS for PostgreSQL<br/>private; TLS verify-full)]
+      ssm -.->|operator shell; no public SSH| app
+      app -->|PostgreSQL TLS :5432<br/>EC2 security group only| rds
+    end
+
+    visitor -->|HTTPS| cf
+    dns -->|website records| cf
+    cf -->|proxied origin request<br/>Cloudflare zone TLS mode not independently verified| nginx
+    railway[(Railway app + PostgreSQL<br/>rollback only; not replicated)]
+    cf -.->|manual rollback only<br/>after service and data checks| railway
+    visitor -->|analytics only after consent| ga4[Google Analytics 4]
+    dns -.->|MX and email-authentication records| mail[Zoho Mail]
+```
+
+The production Let's Encrypt certificate was obtained with manual DNS validation. It expires **February 10, 2027** and does **not** renew automatically yet; the DNS authentication hook/renewal procedure is still an operational task. Railway is a separate rollback service and database, not a replica of RDS.
 
 ### Azure (September 24 to October 23, 2026)
 
@@ -124,11 +154,11 @@ Ubuntu VM vm-career-platform (private IP 172.16.0.4, Denmark East)
    │  SQLite /var/lib/career-platform/career-platform.db
 ```
 
-### Railway (since October 23, 2026), with email and analytics
+### Previous public host: Railway (October 23–November 11, 2026; historical request, email, and analytics path)
 
 ```text
-                     Cloudflare DNS for adamriddick.me
-   @    CNAME -> kvovk0pv.up.railway.app   (currently Proxied, see limitations)
+                     Cloudflare DNS for adamriddick.me (historical Railway routing)
+   @    CNAME -> Railway generated hostname (Proxied)
    www  CNAME -> adamriddick.me, Proxied   + redirect rule: 301 to https://adamriddick.me/
    MX   mx.zoho.com / mx2 / mx3            TXT: SPF, DKIM (zoho._domainkey), DMARC, Zoho + Railway verification
 
@@ -155,13 +185,13 @@ Outbound: Zoho webmail --> Zoho SMTP --SMTP--> recipient server (e.g. Gmail)
 
 ## DNS records and email authentication
 
-Cloudflare is the authoritative DNS host; Namecheap is only the registrar. These are the records for `adamriddick.me` after the October 23 cutover (10 records in Cloudflare):
+Cloudflare is the authoritative DNS host; Namecheap is only the registrar. Website routing below was verified after the November 11, 2026 AWS cutover. Mail-authentication records remain DNS-only and separate from website routing. Values for verification tokens and public keys are abbreviated.
 
 | Name | Type | Value (shortened) | Proxy | Purpose |
 |---|---|---|---|---|
-| `adamriddick.me` | CNAME | `kvovk0pv.up.railway.app` | Proxied (see limitations) | Website: sends visitors to Railway. Replaced the Azure A record `9.205.27.2` |
-| `_railway-verify` | TXT | `railway-verify=f2a64…` | DNS only | Proves to Railway that I own the domain |
-| `www` | CNAME | `adamriddick.me` | Proxied | Lets Cloudflare answer `www` and apply the 301 redirect rule to the root |
+| `@` (`adamriddick.me`) | A | `100.48.139.104` (EC2 Elastic IP) | Proxied | Current AWS website origin; public DNS returns Cloudflare edge addresses |
+| `www` | CNAME | `adamriddick.me` | Proxied | Cloudflare redirects `www` to `https://adamriddick.me/` |
+| `_railway-verify` | TXT | `railway-verify=…` | DNS only | Retained during the Railway rollback window; not used for website routing |
 | `adamriddick.me` | MX | `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50) | DNS only | Tells other mail servers to deliver my mail to Zoho; lowest number first |
 | `adamriddick.me` | TXT | `v=spf1 include:zohomail.com …` | DNS only | **SPF:** Zoho's servers are allowed to send mail as my domain |
 | `zoho._domainkey` | TXT | `v=DKIM1; k=rsa; p=…` | DNS only | **DKIM:** public key that checks Zoho's signature on my outgoing mail |
@@ -170,46 +200,46 @@ Cloudflare is the authoritative DNS host; Namecheap is only the registrar. These
 
 **How the email checks work together.** When Gmail receives my mail, it looks up my SPF record to see whether the sending server is allowed, verifies the DKIM signature with the public key in DNS, and then applies DMARC: at least one of SPF or DKIM must pass *for the same domain shown in From*. Test 04 passed all three for `adamriddick.me` ([ex06.md](docs/evidence/ex06.md#spf-dkim-and-dmarc), [header analysis](docs/evidence/zoho-header-check.md)). Zoho's green checks only show the records exist; the receiving mailbox's result shows a real message passed. If MX were wrong, inbound mail would bounce or go missing; if SPF or DKIM were wrong, my mail would fail DMARC and land in spam.
 
-**Verification of the website records:** before and after cutover with `nslookup` against 1.1.1.1, and `curl` for HTTP status and headers ([railway-migration.md §3–6](docs/evidence/railway-migration.md#3-before-cutover)).
+**Verification:** after cutover, Cloudflare authoritative nameservers and public resolvers returned Cloudflare proxy addresses for apex and `www`; public HTTPS returned 200 with valid TLS, and `www` redirected to the apex. Historical Railway cutover checks are in [railway-migration.md](docs/evidence/railway-migration.md#3-before-cutover).
 
-## Migration: how current data was preserved
+## Migration: Railway to AWS
 
-The plan was written before any change to the working Azure deployment: [design](docs/superpowers/specs/2026-10-13-railway-postgresql-migration-design.md), [plan](docs/superpowers/plans/2026-10-13-railway-postgresql-migration.md), [runbook](docs/railway-migration-runbook.md).
+The AWS migration reused the existing FastAPI application and moved the live website from Railway to an EC2 application host with a private RDS PostgreSQL database. The earlier Azure-to-Railway migration design and runbook remain available for historical context: [design](docs/superpowers/specs/2026-10-13-railway-postgresql-migration-design.md), [runbook](docs/railway-migration-runbook.md).
 
-**What Git moves:** application code, templates, static files, the Alembic schema, `requirements.txt`/`uv.lock`, and tests. **What Git does not move:** secrets (Railway variables), the database rows (transfer utility), and DNS (Cloudflare, by hand).
+**What Git moves:** application code, templates, static files, the Alembic schema, requirements, and tests. **What Git does not move:** production secrets, database rows, or Cloudflare DNS records. Those are handled separately and never stored in Git.
 
-**PostgreSQL compatibility changes:** SQLite-specific `sqlite3` calls and `?` placeholders were replaced with SQLAlchemy Core and named parameters; table creation at import was replaced by Alembic migrations; production requires PostgreSQL and never seeds; the app binds to `0.0.0.0:$PORT`. ([commit `0e1c226`](https://github.com/ariddick195/career-platform/commit/0e1c226))
+**Application and data:** production requires PostgreSQL and never seeds; schema changes use explicit Alembic migrations rather than startup actions. The AWS service binds Uvicorn to loopback behind Nginx. At the final cutover rehearsal on November 11, the fresh Railway custom-format backup was test-restored locally, and row counts and canonical row digests for all eight application tables matched RDS. This establishes the snapshot match at that time, not ongoing replication.
 
-**Data transfer:** `scripts/transfer_database.py` imports all eight tables from a SQLite snapshot into an empty, migrated PostgreSQL database in one transaction, preserving IDs and `person_id` relationships and advancing sequences. Verified Azure source counts: person 1, education 1, experience 1, project 3, skill 4, certification 3, volunteer_experience 3, link 4.
+**Earlier Railway migration:** PostgreSQL compatibility work replaced SQLite-specific access with SQLAlchemy Core and named parameters, added Alembic migrations, and ensured production does not seed the database. The prior SQLite transfer path is documented in code and history, but the Railway-to-RDS move used a PostgreSQL dump/restore rather than that SQLite transfer utility.
 
-**Proof it is current data, not seed data:** the Azure database had a placeholder LinkedIn URL; the development seed has the real URL. After cutover I changed the LinkedIn URL in Railway PostgreSQL and saw it on the live site. All eight table counts match the Azure source, and Railway holds Azure-only details the seed never creates (skill IDs 6 to 9, `PLACEHOLDER` values): [railway-migration.md](docs/evidence/railway-migration.md#2-current-data-comparison).
+**Historical data verification:** the Azure database had a placeholder LinkedIn URL; development seed data had the real URL. After the Azure-to-Railway cutover, the LinkedIn URL was changed in Railway PostgreSQL and verified on the live site. All eight table counts matched the Azure source, and Railway held Azure-only details the seed never creates: [railway-migration.md](docs/evidence/railway-migration.md#2-current-data-comparison).
 
-**Cutover (October 23, 2026):** before/after DNS and HTTP checks, the TLS failure, and the `www` redirect are in [railway-migration.md](docs/evidence/railway-migration.md). Azure stays running.
+**Cutovers:** the Azure-to-Railway cutover on October 23, 2026, and its DNS/TLS investigation are recorded in [railway-migration.md](docs/evidence/railway-migration.md). The production AWS cutover followed on November 11, 2026; Railway remains a rollback option only while its service is available, and data changes require reconciliation before rolling back.
 
-**What moved to Railway (compared with the Azure HTTPS work in Exercise 04):** on Azure, HTTPS took a port 443 NSG rule, Nginx `server_name`, Certbot, a domain challenge, and a renewal timer. On Railway it took one custom domain entry and two DNS records, because Railway runs the edge, TLS, and routing for me.
+**AWS operations:** GitHub `main` does not automatically deploy to EC2. From Session Manager, fast-forward the EC2 checkout at `/opt/career-platform` to `origin/main`, restart `career-platform.service`, then verify the service, origin endpoints, and public HTTPS. Nginx and Certbot run on EC2; production certificate renewal for the manual DNS-01 certificate still needs an authentication hook.
 
-## Who manages what: Azure vs Railway
+## Who manages what: AWS vs Railway
 
-| Layer | Azure VM | Railway |
+| Layer | AWS | Railway rollback |
 |---|---|---|
-| Hardware, hypervisor, network | Azure | Railway |
-| Operating system and patches | **Me** (Ubuntu) | Railway |
-| Language runtime (Python) | **Me** (venv on the VM) | Railway builds it; **I** choose the version and dependencies |
-| Web entry point | **Me** (Nginx, NSG rules) | Railway edge |
-| TLS certificate and renewal | **Me** (Certbot, renewal timer) | Railway (Let's Encrypt), **I** keep DNS correct |
-| Process management | **Me** (systemd, 2 Uvicorn workers) | Railway restarts the container; **I** set the start command |
+| Hardware and hypervisor | AWS | Railway |
+| Operating system and patches | **Me** (Amazon Linux 2023 on EC2) | Railway |
+| Language runtime (Python) | **Me** (venv on EC2) | Railway builds it; **I** choose the version and dependencies |
+| Web entry point | **Me** (Cloudflare proxy, EC2 security group, Nginx) | Railway edge |
+| TLS certificate and renewal | **Me** (Nginx/Certbot; production manual-DNS renewal is not automated yet) | Railway manages its edge certificate; **I** keep DNS correct |
+| Process management | **Me** (systemd/Uvicorn) | Railway restarts the container; **I** set the start command |
 | Application code | **Me** | **Me** |
-| Configuration and secrets | **Me** (`.env` on the VM) | **Me** (Railway variables) |
-| Database software | **Me** (SQLite file) | Railway runs PostgreSQL but calls it unmanaged |
-| Data, schema, backups, restores | **Me** | **Me** |
-| DNS | **Me** (Cloudflare) | **Me** (Cloudflare) |
+| Configuration and secrets | EC2 IAM role reads Secrets Manager; protected environment file on EC2 | **Me** (Railway variables) |
+| Database software | AWS manages RDS PostgreSQL service | Railway PostgreSQL service |
+| Data, schema, backups, restores | **Me**; AWS and Railway databases do not replicate | **Me** |
+| DNS | **Me** (Cloudflare; website records proxied, email records preserved) | **Me** (Cloudflare) |
 | Testing, monitoring, recovery | **Me** | **Me** |
 
-PaaS is not maintenance-free: Railway took the OS, runtime host, edge, and certificate work, but my code, settings, secrets, schema, data, backups, DNS, and verification are still mine.
+RDS is managed database infrastructure, not managed application data. I remain responsible for code, configuration, schema changes, backup/restore verification, DNS, TLS renewal monitoring, and recovery. The Railway service is a separate fallback, not a synchronized blue/green deployment.
 
 ## Decisions
 
-> Written afterward, on October 25, 2026, from the decisions argued in class on October 8 (Railway) and October 13 (email).
+> This decision records the October 2026 Railway choice as it was made then. The later AWS migration superseded Railway as the public host; Railway is now retained only as a rollback option while available.
 
 ### Decision 1: Move from the Azure VM to Railway
 
@@ -229,9 +259,9 @@ PaaS is not maintenance-free: Railway took the OS, runtime host, edge, and certi
 - **What I still own:** the MX, SPF, DKIM, and DMARC records, and the proof they work. One wrong record means mail that bounces or lands in spam.
 - **What would change my answer:** needing Outlook or Apple Mail (the free plan has no IMAP) or more than five mailboxes would mean a paid plan. Running my own server only makes sense with someone whose job is email.
 
-### Decision 3: SQLite on Azure, PostgreSQL on Railway
+### Decision 3: Database evolution — SQLite on Azure, PostgreSQL on Railway, PostgreSQL on RDS
 
-SQLite fit one VM: a single file on the same disk as the app, with no database server to run. On Railway, each push replaces the app container, so a database file inside it would be lost on the next deploy. A separate PostgreSQL service keeps the data safe across deploys. I kept SQLite for local development because it needs no setup.
+SQLite fit the original VM: one local file, no separate database server. Railway used a separate PostgreSQL service to keep the database separate from replaceable application containers. The AWS migration retained PostgreSQL on private RDS while moving application hosting back to a VM-style EC2 environment. I kept SQLite for local development because it needs no setup.
 
 ## Investigated failures
 
@@ -247,25 +277,28 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 ## Remaining limitations
 
-- **Root record is Proxied, not DNS only.** Railway's certificate request hit the Let's Encrypt rate limit; visitors currently get Cloudflare's certificate. Retry plan in [railway-migration.md §5](docs/evidence/railway-migration.md#5-investigated-failure-tls-certificate-after-switching-to-dns-only).
-- **SSH to the Azure VM** allows only my laptop's earlier `/32` address, so after a network change I verify the VM through Azure Run command instead of widening the rule ([restart test](docs/superpowers/plans/2026-10-01-operate-the-vm.md#restart-test--2026-10-25)).
+- **Production certificate renewal is not automated yet.** The apex/`www` Let's Encrypt certificate was issued with manual DNS-01 validation and expires February 10, 2027. Add and test a scoped DNS authentication hook before expiry; the existing EC2 staging certificate has a separate renewal setup.
+- **Cloudflare zone SSL mode was not independently verified.** Public HTTPS and local origin TLS tests passed, but the Cloudflare-to-origin TLS mode should be confirmed during the next security review.
+- **Single-host availability:** the application runs on one EC2 instance and RDS is Single-AZ; an instance or AZ failure can cause downtime.
+- **Railway rollback availability:** Railway's trial was reported to expire November 12, 2026. Confirm the service and database remain available before relying on Railway as a rollback target; no automatic database replication exists.
+- **AWS budget:** the target is $20/month out of pocket after applicable credits. Actual charges and credit eligibility are not guaranteed by this target.
 - **Before-MX email test** was not performed: my first inbound test was sent after the MX records were published ([ex06.md](docs/evidence/ex06.md#before-mx-was-published)).
-- **`www`** is served only by the Cloudflare redirect; Railway's trial allows one custom domain.
-- **Admin writes on Railway** stay disabled until `ADMIN_ALLOWED_ORIGINS` and production credentials are set.
-- **Trial clock:** Railway has 20 days or $4.67 left as of October 23, 2026.
+- **`www`** relies on the Cloudflare redirect to the apex.
+- **Admin writes on AWS** remain fail-closed: the current `career_platform_app` database role is read-only, and credentials and exact allowed origins must also be deliberately configured and verified before enabling writes.
 
 ## Costs, expiration dates, and cleanup
 
 | Service | What it is | Cost / plan | Expires or renews | Cleanup plan |
 |---|---|---|---|---|
-| Railway | Web service + PostgreSQL | Trial ($5 credit) | About **November 12, 2026** (20 days or $4.67 left on Oct 23) | Migrate to AWS after the midterm, before the trial ends |
-| Azure VM `vm-career-platform` | Compute (Standard_B2ts_v2, Denmark East) | Student credits | While credits last | After the instructor says so: Stop (deallocate) to stop compute charges |
-| Azure disk + static public IP | Retained storage and IP | Charge even when the VM is stopped | Same | Delete with the resource group `rg-career-platform` when told |
+| Amazon EC2 | Application host and Elastic IP in `us-east-1` | Ongoing AWS charges; target is **$20/month out of pocket after applicable credits** | While running; EIP and storage can also incur charges | Keep for the approved AWS semester deployment; review before final shutdown |
+| Amazon RDS for PostgreSQL | Private Single-AZ production database | Ongoing compute, storage, backup, and transfer charges; actual total varies | While active; backups/storage may remain billable | Export and test final data before approved teardown |
+| Railway | Rollback web service + separate PostgreSQL database | Trial/plan status must be checked; no longer current public host | Trial was reported to expire **November 12, 2026**; current availability unverified | Keep intact until rollback window is closed and data is reconciled |
+| Azure VM and storage | Legacy hosting resources | Current resource and billing status unverified | Unverified | Verify and clean up only after confirming no remaining course or data dependency |
 | Domain `adamriddick.me` | Namecheap registration | Paid yearly; price to confirm in Namecheap Domain List | Renewal date to confirm in Namecheap Domain List | Keep; it is my email address too |
 | Cloudflare | DNS, redirect rule | Free | n/a | Keep |
 | Zoho Mail | `adamriddick@adamriddick.me` | Forever Free (1 domain, 5 users, 5 GB, no IMAP) | n/a | Keep |
 | Google Analytics 4 | Analytics | Free | n/a | Keep |
-| Let's Encrypt (Azure) | Certificate on the VM | Free | Expires Jan 6, 2027; Certbot renews | Ends with the VM |
+| Let's Encrypt (AWS production) | Certificate for `adamriddick.me` and `www` on EC2 Nginx | Free | Expires February 10, 2027; manual DNS certificate does not renew automatically yet | Maintain a tested DNS authentication hook; remove only during approved host retirement |
 
 ## Reflection
 
