@@ -71,7 +71,7 @@ For local admin access, set non-empty `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `
 | Database access | EC2 role reads the app database secret; application uses PostgreSQL TLS verification (`verify-full`). Secrets are not in Git. |
 | Application checkout | `/opt/career-platform`, GitHub `ariddick195/career-platform`, branch `main` |
 | Configuration | Protected `/etc/career-platform/production.env`; never copy it into the repository or logs |
-| Admin | Writes remain fail-closed; unauthenticated `/admin` currently returns HTTP 503 |
+| Admin | Intentionally disabled in production; `/admin` fails closed with HTTP 503 |
 
 In production the app requires PostgreSQL and fails closed without its database configuration; it never falls back to SQLite. Production data is not seeded automatically, and application startup does not run Alembic migrations.
 
@@ -111,28 +111,28 @@ flowchart LR
 
     subgraph aws[AWS us-east-1]
       subgraph ec2[Amazon Linux 2023 EC2]
-        nginx[Nginx :80/:443<br/>HTTP redirects to HTTPS<br/>TLS certificate for apex and www]
+        nginx[Nginx :80/:443<br/>HTTPS terminates here<br/>HTTP redirects to HTTPS]
         app[FastAPI + Uvicorn<br/>systemd career-platform.service<br/>127.0.0.1:8000]
         secrets[EC2 IAM role<br/>reads app DB secret]
         nginx -->|loopback HTTP| app
         secrets -.->|protected environment file| app
       end
-      ssm[AWS Systems Manager<br/>Session Manager]
+      ssm[AWS Systems Manager<br/>Session Manager admin path<br/>no SSH]
       rds[(Amazon RDS for PostgreSQL<br/>private; TLS verify-full)]
-      ssm -.->|operator shell; no public SSH| app
+      ssm -.->|private operator shell| ec2
       app -->|PostgreSQL TLS :5432<br/>EC2 security group only| rds
     end
 
     visitor -->|HTTPS| cf
     dns -->|website records| cf
-    cf -->|proxied origin request<br/>Cloudflare zone TLS mode not independently verified| nginx
+    cf -->|HTTPS origin request<br/>TLS terminates at Nginx<br/>Cloudflare zone TLS mode not independently verified| nginx
     railway[(Railway app + PostgreSQL<br/>rollback only; not replicated)]
     cf -.->|manual rollback only<br/>after service and data checks| railway
     visitor -->|analytics only after consent| ga4[Google Analytics 4]
     dns -.->|MX and email-authentication records| mail[Zoho Mail]
 ```
 
-The production Let's Encrypt certificate was obtained with manual DNS validation. It expires **February 10, 2027** and does **not** renew automatically yet; the DNS authentication hook/renewal procedure is still an operational task. Railway is a separate rollback service and database, not a replica of RDS.
+The production Let's Encrypt certificate for `adamriddick.me` and `www` expires **February 10, 2027**. Automatic renewal is configured with Certbot's Nginx HTTP-01 authenticator; the production lineage dry run and the all-certificate dry run both passed on **November 13, 2026**. No live certificate renewal was performed in those tests. Railway is a separate rollback service and database, not a replica of RDS.
 
 ### Azure (September 24 to October 23, 2026)
 
@@ -208,7 +208,7 @@ The AWS migration reused the existing FastAPI application and moved the live web
 
 **What Git moves:** application code, templates, static files, the Alembic schema, requirements, and tests. **What Git does not move:** production secrets, database rows, or Cloudflare DNS records. Those are handled separately and never stored in Git.
 
-**Application and data:** production requires PostgreSQL and never seeds; schema changes use explicit Alembic migrations rather than startup actions. The AWS service binds Uvicorn to loopback behind Nginx. At the final cutover rehearsal on November 11, the fresh Railway custom-format backup was test-restored locally, and row counts and canonical row digests for all eight application tables matched RDS. This establishes the snapshot match at that time, not ongoing replication.
+**Application and data:** production requires PostgreSQL and never seeds; schema changes use explicit Alembic migrations rather than startup actions. The AWS service binds Uvicorn to loopback behind Nginx. A fresh Railway custom-format backup taken November 11 was restored to an isolated local PostgreSQL 18.6 instance; all eight application-table counts and canonical row digests matched RDS. This verifies the compared snapshot, not ongoing replication. The Railway and RDS databases remain independent.
 
 **Earlier Railway migration:** PostgreSQL compatibility work replaced SQLite-specific access with SQLAlchemy Core and named parameters, added Alembic migrations, and ensured production does not seed the database. The prior SQLite transfer path is documented in code and history, but the Railway-to-RDS move used a PostgreSQL dump/restore rather than that SQLite transfer utility.
 
@@ -216,7 +216,15 @@ The AWS migration reused the existing FastAPI application and moved the live web
 
 **Cutovers:** the Azure-to-Railway cutover on October 23, 2026, and its DNS/TLS investigation are recorded in [railway-migration.md](docs/evidence/railway-migration.md). The production AWS cutover followed on November 11, 2026; Railway remains a rollback option only while its service is available, and data changes require reconciliation before rolling back.
 
-**AWS operations:** GitHub `main` does not automatically deploy to EC2. From Session Manager, fast-forward the EC2 checkout at `/opt/career-platform` to `origin/main`, restart `career-platform.service`, then verify the service, origin endpoints, and public HTTPS. Nginx and Certbot run on EC2; production certificate renewal for the manual DNS-01 certificate still needs an authentication hook.
+**AWS operations:** GitHub `main` does not automatically deploy to EC2. From Session Manager (the administrator path; inbound SSH is not enabled), fast-forward the EC2 checkout at `/opt/career-platform` to `origin/main`, restart `career-platform.service`, then verify the service, origin endpoints, and public HTTPS. Nginx and Certbot run on EC2. Section 10's production checks were performed after the November 11 DNS cutover, rather than on a test subdomain before cutover; see [`migration-notes.md`](migration-notes.md).
+
+**Architecture decision:** use Cloudflare's proxied public ingress to Nginx on one Amazon Linux 2023 EC2 host, with HTTPS terminating at Nginx and FastAPI/Uvicorn behind it, plus private Single-AZ RDS PostgreSQL; choose this familiar, low-complexity layout over a more managed/multi-host design to fit the course deployment and cost constraints, accepting single-instance/AZ availability risk and responsibility for host operations. Session Manager is the administrative access path; public SSH is not used.
+
+**Production checks:** after cutover, public checks recorded HTTP-to-HTTPS redirects, apex HTTPS 200, `www` redirect to the apex, `/privacy` and static assets 200, and `/admin` 503 as intended. `/login` returned 404 because no separate login route is exposed. Rendered homepage profile counts matched the November 11 backup counts, but a current live EC2-to-RDS query was not independently established; application logs were not inspected during that check. The tested backup restore and these post-cutover checks are documented in [`migration-notes.md`](migration-notes.md).
+
+**Admin:** `/admin` is intentionally disabled in production and fails closed with HTTP 503. Do not enable it by adding production credentials without a separate explicit decision and review.
+
+**Guide deviations:** the deployed host is Amazon Linux 2023 x86_64 `t3.micro` rather than the guide's planned Graviton `t4g.micro`, because the account's available instance-type policy constrained the choice. No inbound SSH was opened; operators use Session Manager. The test-subdomain Section 10 checks were skipped and equivalent public checks were done after cutover.
 
 ## Who manages what: AWS vs Railway
 
@@ -226,7 +234,7 @@ The AWS migration reused the existing FastAPI application and moved the live web
 | Operating system and patches | **Me** (Amazon Linux 2023 on EC2) | Railway |
 | Language runtime (Python) | **Me** (venv on EC2) | Railway builds it; **I** choose the version and dependencies |
 | Web entry point | **Me** (Cloudflare proxy, EC2 security group, Nginx) | Railway edge |
-| TLS certificate and renewal | **Me** (Nginx/Certbot; production manual-DNS renewal is not automated yet) | Railway manages its edge certificate; **I** keep DNS correct |
+| TLS certificate and renewal | **Me** (Nginx/Certbot; HTTP-01 automated renewal configured and dry-run tested November 13, 2026) | Railway manages its edge certificate; **I** keep DNS correct |
 | Process management | **Me** (systemd/Uvicorn) | Railway restarts the container; **I** set the start command |
 | Application code | **Me** | **Me** |
 | Configuration and secrets | EC2 IAM role reads Secrets Manager; protected environment file on EC2 | **Me** (Railway variables) |
@@ -277,7 +285,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 ## Remaining limitations
 
-- **Production certificate renewal is not automated yet.** The apex/`www` Let's Encrypt certificate was issued with manual DNS-01 validation and expires February 10, 2027. Add and test a scoped DNS authentication hook before expiry; the existing EC2 staging certificate has a separate renewal setup.
+- **Certificate renewal:** the apex/`www` Let's Encrypt production lineage now uses Certbot's Nginx HTTP-01 authenticator. Production-only and all-lineage dry runs passed November 13, 2026; the live certificate expires February 10, 2027. Continue monitoring the scheduled renewal timer and verify renewal well before expiry.
 - **Cloudflare zone SSL mode was not independently verified.** Public HTTPS and local origin TLS tests passed, but the Cloudflare-to-origin TLS mode should be confirmed during the next security review.
 - **Single-host availability:** the application runs on one EC2 instance and RDS is Single-AZ; an instance or AZ failure can cause downtime.
 - **Railway rollback availability:** Railway's trial was reported to expire November 12, 2026. Confirm the service and database remain available before relying on Railway as a rollback target; no automatic database replication exists.
@@ -290,7 +298,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 
 | Service | What it is | Cost / plan | Expires or renews | Cleanup plan |
 |---|---|---|---|---|
-| Amazon EC2 | Application host and Elastic IP in `us-east-1` | Ongoing AWS charges; target is **$20/month out of pocket after applicable credits** | While running; EIP and storage can also incur charges | Keep for the approved AWS semester deployment; review before final shutdown |
+| Amazon EC2 | Application host and Elastic IP in `us-east-1` | Section 6 illustrative lower bound: **about $23.72/month gross** for listed EC2/RDS compute, public IPv4, and 10 GiB EC2 gp3 only; excludes RDS storage, Secrets Manager, KMS, backup overage, transfer, logs, taxes, and CPU credits. Owner target: **$20/month out of pocket after applicable credits**; credit applicability and actual total are unverified. | While running; EIP and storage can also incur charges | Keep for the approved AWS semester deployment; review before final shutdown |
 | Amazon RDS for PostgreSQL | Private Single-AZ production database | Ongoing compute, storage, backup, and transfer charges; actual total varies | While active; backups/storage may remain billable | Export and test final data before approved teardown |
 | Railway | Rollback web service + separate PostgreSQL database | Trial/plan status must be checked; no longer current public host | Trial was reported to expire **November 12, 2026**; current availability unverified | Keep intact until rollback window is closed and data is reconciled |
 | Azure VM and storage | Legacy hosting resources | Current resource and billing status unverified | Unverified | Verify and clean up only after confirming no remaining course or data dependency |
@@ -298,7 +306,7 @@ Each record gives the symptom, the checks, the diagnosis, the repair, and the re
 | Cloudflare | DNS, redirect rule | Free | n/a | Keep |
 | Zoho Mail | `adamriddick@adamriddick.me` | Forever Free (1 domain, 5 users, 5 GB, no IMAP) | n/a | Keep |
 | Google Analytics 4 | Analytics | Free | n/a | Keep |
-| Let's Encrypt (AWS production) | Certificate for `adamriddick.me` and `www` on EC2 Nginx | Free | Expires February 10, 2027; manual DNS certificate does not renew automatically yet | Maintain a tested DNS authentication hook; remove only during approved host retirement |
+| Let's Encrypt (AWS production) | Certificate for `adamriddick.me` and `www` on EC2 Nginx | Free | Expires February 10, 2027; Certbot Nginx HTTP-01 auto-renewal configured; production and all-lineage dry runs passed November 13, 2026 | Monitor timer and renewal; remove only during approved host retirement |
 
 ## Reflection
 
